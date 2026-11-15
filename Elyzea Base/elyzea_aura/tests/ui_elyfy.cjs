@@ -122,7 +122,10 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   await p.click('.ef-cr[data-cid="2"] [data-pub]'); await wait(600);
   check(await p.$('.ef-cr[data-cid="2"] [data-pub].on') !== null, 'titre publié');
   await p.click('.ef-imp [data-pc]'); await wait(600);
-  check((await p.textContent('.ef-code')).replace(/\s/g, '') === 'K7P2QD' && (await p.textContent('.ef-url')).includes('/elyzea_aura/import'), 'depuis l\'ordinateur : adresse + code');
+  check((await p.textContent('.ef-code')).replace(/\s/g, '') === 'K7P2QD' && (await p.textContent('.ef-open small')).includes('/elyzea_aura/import'), 'depuis l\'ordinateur : bouton du site + code');
+  await p.evaluate(() => { window.__opened = null; window.invokeNative = (n, u) => { if (n === 'openUrl') window.__opened = u; }; });
+  await p.click('[data-open-site]'); await wait(200);
+  check(await p.evaluate(() => window.__opened) === 'https://monserveur-abc123.users.cfx.re/elyzea_aura/import?code=K7P2QD', 'appui : le site s\'ouvre dans le navigateur de l\'ordinateur, code déjà rempli');
   check((await p.textContent('#ef-exp')).includes('min'), 'durée de validité du code');
   await shot('10_import_code');
   await p.evaluate(async () => { await EFMock.call('__imported', { title: 'Mon son du PC' }); window.postMessage({ action: 'elyfy', data: { type: 'imported', title: 'Mon son du PC' } }, '*'); });

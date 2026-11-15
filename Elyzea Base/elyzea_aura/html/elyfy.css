@@ -267,3 +267,9 @@
 .ef-btn2 { background: var(--surface-2) !important; color: var(--text) !important; border: 0 !important; font-weight: 700 !important; }
 .ef-chk { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; font-weight: 600; }
 .ef-chk input { width: 18px; height: 18px; accent-color: #9B5CFF; }
+
+.ef-open { width: 100%; display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 11px 12px; border-radius: 14px; text-align: left; color: #fff !important; background: linear-gradient(135deg, #B57BFF, #7B2FF7); box-shadow: 0 8px 20px rgba(123,47,247,.3); transition: transform .15s; }
+.ef-open:active { transform: scale(.97); }
+.ef-open > span { flex: 1; min-width: 0; display: flex; flex-direction: column; font-weight: 800; font-size: 14px; }
+.ef-open small { font-weight: 600; font-size: 11.5px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ef-open .efi { width: 20px; height: 20px; flex: none; }

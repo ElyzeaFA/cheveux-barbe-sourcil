@@ -126,6 +126,7 @@ const RESOURCE = 'elyzea_aura';
   if (pre) $('code').value = pre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   const upd1 = () => { $('code').value = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); $('go1').disabled = $('code').value.length !== 6; };
   $('code').oninput = upd1; upd1();
+  if (pre && $('code').value.length === 6) setTimeout(() => $('go1').click(), 150);   // lien ouvert depuis le téléphone : code déjà validé
   $('code').onkeydown = (e) => { if (e.key === 'Enter' && !$('go1').disabled) $('go1').click(); };
   $('go1').onclick = async () => {
     $('go1').disabled = true; msg($('m1'), 'Vérification…');

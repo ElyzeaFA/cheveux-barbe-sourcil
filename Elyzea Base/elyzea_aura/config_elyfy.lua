@@ -35,7 +35,7 @@ Config.ElyFy = {
         Url = '',
         -- Page d'import hébergée ailleurs (ex. GitHub Pages : 'https://pseudo.github.io/elyfy/'). Vide = page servie par ce serveur.
         -- Dans le index.html de cette page, mets SERVER = l'adresse https de ton serveur (https://xxxx.users.cfx.re).
-        Page = 'https://connexionsky9.github.io/Sky9New/',
+        Page = 'https://connexionsky9.github.io/ElyFy/',
         MaxMB = 15,          -- taille maximale d'un fichier
         CodeMinutes = 15,    -- durée de validité d'un code
     },

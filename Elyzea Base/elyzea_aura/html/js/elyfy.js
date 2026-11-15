@@ -37,6 +37,7 @@ const EFI = {
   trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  chev: '<path d="m9 5 7 7-7 7"/>',
   pc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/>',
   spark: '<path d="M12 2.5 13.8 9 20.5 11 13.8 13 12 19.5 10.2 13 3.5 11 10.2 9z" fill="currentColor"/><path d="M19 3v4M17 5h4" />',
@@ -527,13 +528,20 @@ async function efLoadCreations(tok) {
   $$('[data-crdel]', box).forEach(b => b.onclick = () => confirmSheet(t('Supprimer ce titre ?'), t('Il disparaîtra d\'ElyFy pour tout le monde.'), t('Supprimer'), async () => { await efApi('efDeleteCreation', { id: +b.dataset.crdel }); efLoadCreations(); }));
 }
 // Depuis l'ordinateur : code à usage unique + adresse de la page d'import
+// Ouvre une adresse dans le vrai navigateur de l'ordinateur (fonction de FiveM), sinon un nouvel onglet (aperçu)
+function efOpenUrl(url) {
+  if (!/^https?:\/\//.test(url)) return;
+  if (typeof window.invokeNative === 'function') window.invokeNative('openUrl', url);
+  else window.open(url, '_blank', 'noopener');
+}
 async function efImportSheet() {
   const r = await efApi('efImportCode');
   if (!r.ok) return efToast(efErr(r));
   const end = Date.now() + r.minutes * 60000;
   const sh = openSheet(t('Depuis mon ordinateur'), `<div class="ef-impsheet">
       <ol class="ef-steps">
-        <li><b>1</b><span>${t('Sur ton ordinateur, ouvre cette adresse dans ton navigateur :')}<code class="ef-url">${esc(r.url)}</code></span></li>
+        <li><b>1</b><span>${t('Ouvre le site sur ton ordinateur (le code est déjà rempli) :')}
+          <button class="ef-open" data-open-site>${efIco('pc')}<span>${t('Ouvrir le site')}<small>${esc(r.url.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</small></span>${efIco('chev')}</button></span></li>
         <li><b>2</b><span>${t('Tape ce code :')}</span></li>
       </ol>
       <div class="ef-code">${esc(r.code.slice(0, 3))}<i></i>${esc(r.code.slice(3))}</div>
@@ -543,6 +551,11 @@ async function efImportSheet() {
       <button class="btn btn--block ef-btn2" data-new>${t('Nouveau code')}</button></div>`, (s) => {
     s.classList.add('ef-sheet');
     $('[data-new]', s).onclick = () => { closeSheet(true); efImportSheet(); };
+    $('[data-open-site]', s).onclick = () => {
+      const link = r.url + (r.url.includes('?') ? '&' : '?') + 'code=' + encodeURIComponent(r.code);
+      efOpenUrl(link);
+      efToast(t('Le site s\'ouvre dans le navigateur de ton ordinateur (Alt+Tab pour y aller).'));
+    };
   });
   const tick = () => {
     const el = $('#ef-exp', sh);
