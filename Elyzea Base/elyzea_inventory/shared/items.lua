@@ -216,6 +216,11 @@ Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5,
 Items.bank_drill  = { label = 'Perceuse de coffre', weight = 3500, stack = false, image = 'bank_drill.png', icon = '🛠️',
     description = 'Perceuse thermique pour ouvrir les coffres individuels d\'une banque.' }
 
+-- ───────── Contrebande (ressource elyzea_cachettes) ─────────
+-- Nécessaire pour aménager / ouvrir une cachette dans un véhicule (ALT sur le véhicule). Jamais consommé.
+Items.tournevis = { label = 'Tournevis', weight = 150, stack = false, icon = '🪛',
+    description = 'Tournevis d\'atelier. Permet de démonter les garnitures d\'un véhicule (ALT sur le véhicule).' }
+
 -- ───────── Téléphones ElyAura 1 à 6 (elyzea_aura/config_phones.lua) ─────────
 -- « Utiliser » : ce téléphone devient celui du joueur (numéro, contacts et messages suivent le personnage).
 -- Images : html/img/elyaura_1.png … elyaura_6.png (256 × 256)
@@ -341,6 +346,19 @@ do
     end
 end
 
+-- ───────── Lettres (elyzea_lettres) ─────────
+-- Une lettre n'est qu'une clé (métadonnée « letter ») : son texte est gardé par elyzea_lettres (table elyzea_letters).
+-- Elle se donne, se pose, se range dans un coffre comme tout objet ; chaque lettre est unique (non empilable).
+Items.feuille_papier = { label = 'Feuille de papier', weight = 5, stack = true, max = 50, image = 'feuille_papier.png', icon = '📄', close = true,
+    description = 'Feuille vierge. Utiliser (avec un stylo à bille) pour écrire une lettre. Elle n\'est utilisée que si la lettre est terminée.' }
+Items.stylo_bille = { label = 'Stylo à bille', weight = 10, stack = true, max = 5, image = 'stylo_bille.png', icon = '🖊️', close = true,
+    description = 'Nécessaire pour écrire une lettre. Il ne s\'use pas.' }
+Items.lettre = { label = 'Lettre', weight = 5, stack = false, image = 'lettre.png', icon = '✉️', close = true, category = 'papers',
+    description = 'Lettre manuscrite. Utiliser pour la lire.' }
+Items.enveloppe = { label = 'Enveloppe', weight = 5, stack = true, max = 20, image = 'enveloppe.png', icon = '✉️',
+    description = 'Enveloppe vide. Ouvrez une lettre terminée puis « Mettre sous enveloppe ».' }
+Items.enveloppe_lettre = { label = 'Enveloppe', weight = 10, stack = false, image = 'enveloppe_lettre.png', icon = '💌', close = true, category = 'papers',
+    description = 'Enveloppe contenant une lettre. Utiliser pour l\'ouvrir et la lire.' }
 -- Tags (elyzea_tags) : peindre / effacer un graffiti
 Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',
     description = 'Peins un tag sur un mur de ton quartier.' }
@@ -529,6 +547,7 @@ ImageAlias = {
     coca_paste = 'coke_small_brick.png', coca_refined = 'coke_brick.png', coke_premium = 'cocaine_baggy.png',
     drg_acid = 'hydrochloricacid.png', meth_crystal = 'meth_tray.png', meth_liquid = 'meth_tray.png',
     crowbar = 'WEAPON_CROWBAR.png', walking_stick = 'walkstick.png',
+    tournevis = 'screwdriverset.png',
     advancedrepairkit = 'repairkit.png', trojan_usb = 'usb_device.png',
     at_scope_macro = 'at_scope_small.png', at_compensator = 'at_muzzle_tactical.png',
 }

@@ -118,6 +118,12 @@ do
         meta.v13 = true
         Storage.save('meta', meta)
     end
+    if not meta.v51 then
+        -- Cachettes véhicules (elyzea_cachettes) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.cachettes_manage = true end
+        meta.v51 = true
+        Storage.save('meta', meta)
+    end
     if not meta.v50 then
         -- Tags des quartiers (elyzea_tags) : modération dès Modérateur (le Fondateur a toujours tout)
         for _, r in ipairs({ 'moderateur', 'administrateur', 'superadmin' }) do if Ranks[r] then Ranks[r].perms.tags_manage = true end end

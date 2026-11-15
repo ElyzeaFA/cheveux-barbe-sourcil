@@ -90,6 +90,7 @@ server_scripts {
     'server/fuel.lua',
     'server/staffjob.lua',
     'server/trunks.lua',
+    'server/cachettes.lua',
     'server/drugsale.lua',
     'server/drogues.lua',
     'server/sante.lua',
@@ -113,6 +114,7 @@ server_scripts {
     'server/sharks.lua',
     'server/loisirs.lua',
     'server/tv.lua',
+    'server/lettres.lua',
 }
 
 ui_page 'html/index.html'
@@ -150,6 +152,7 @@ files {
     'html/fuel.js',
     'html/staffjob.js',
     'html/trunks.js',
+    'html/cachettes.js',
     'html/drugsale.js',
     'html/drogues.js',
     'html/sante.js',
@@ -183,5 +186,6 @@ files {
     'html/sharks.js',
     'html/loisirs.js',
     'html/tv.js',
+    'html/lettres.js',
     'html/logo.png',
 }

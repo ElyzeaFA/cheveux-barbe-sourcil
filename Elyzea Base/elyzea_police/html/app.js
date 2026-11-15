@@ -55,7 +55,7 @@ $('#confirm').addEventListener('click', (e) => {
 const ICONS = { cuff: '⛓️', escort: '🚶', in: '🚓', out: '🚪', fine: '🧾', carry: '🧍', trunk: '🧳', hide: '🫣', impound: '🚛', search: '🔍',
   examine: '🩺', blood: '🩸', heal: '💊', stabilize: '🩹', revive: '❤️', record: '📋', ppa: '📜', repair: '🔧', clean: '🧽', flip: '🔄', engine: '⚙️', body: '🚗', tyres: '🛞',
   bag: '🎒', open: '👜', buy: '🛒', sell: '💰', rob: '🔫', hack: '💻', c4: '🧨', cash: '💵', talk: '💬', bank: '🏦', alarm: '🚨', drill: '🛠️',
-  anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️', mic: '🎤', press: '📰', break: '💥' };
+  anim_copy: '🪞', anim_propose: '💃', anim_cancel: '✖️', anim_stop: '⏹️', mic: '🎤', press: '📰', break: '💥', stash: '🪛', inspect: '🔦' };
 let altOpenedAt = 0, altSent = false, altIdx = -1;
 const KIND_ICON = { player: '🧍', carry: '🧍', vehicle: '🚗', trunk: '🧳', npc: '⚠️', ext: '✦' };
 const KIND_LABEL = { player: 'Personne', carry: 'Personne portée', vehicle: 'Véhicule', trunk: 'Coffre', npc: 'PNJ', ext: 'Élément' };

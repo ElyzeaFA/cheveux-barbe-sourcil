@@ -493,6 +493,24 @@ end
 local AccessChecks = {}
 function RegisterStashAccess(prefix, cb) AccessChecks[prefix] = cb end
 
+-- Garde-fous supplémentaires sur les échanges avec un coffre (ex. elyzea_cachettes : objets interdits,
+-- cachette refermée) : fonction(src, stashId, action ('store' | 'take' | 'move'), objet, quantité) -> true | false, message
+local StashGuards = {}
+function RegisterStashGuard(prefix, cb) StashGuards[prefix] = cb end
+local function guardStash(src, v, action, name, count)
+    if not v or v.kind ~= 'stash' then return true end
+    local c = Containers[v.id]
+    local def = c and c.def or tostring(v.id)
+    for prefix, cb in pairs(StashGuards) do
+        if def:sub(1, #prefix) == prefix then
+            local ok, res, why = pcall(cb, src, def, action, name, count)
+            if not ok then print(('^1[elyzea_inventory] garde-fou %s : %s^0'):format(prefix, tostring(res))) return false, 'no_access' end
+            if res == false then return false, why or 'no_access' end
+        end
+    end
+    return true
+end
+
 local function canAccessStash(src, c)
     if not hasGroup(src, c.groups) then return false end
     for prefix, cb in pairs(AccessChecks) do
@@ -688,6 +706,8 @@ function Actions.store(src, inv, d)
     local item = from and inv.slots[from]
     if not item then return false end
     local count = int(d.count, 1, item.count) or item.count
+    local allowed, why = guardStash(src, v, 'store', item.name, count)
+    if not allowed then return false, why end
     local ok, err = addTo(st, item.name, count, item.metadata, d.to)
     if not ok then return false, err == 'too_heavy' and 'container_heavy' or err end
     removeFrom(inv, item.name, count, nil, from)
@@ -730,6 +750,8 @@ function Actions.take(src, inv, d)
     local item = from and st.slots[from]
     if not item then return false end
     local count = int(d.count, 1, item.count) or item.count
+    local allowed, why = guardStash(src, v, 'take', item.name, count)
+    if not allowed then return false, why end
     local ok, err = addItem(src, item.name, count, item.metadata, d.to)
     if not ok then return false, err end
     removeFrom(st, item.name, count, nil, from)
@@ -746,6 +768,8 @@ function Actions.cmove(src, _, d)
     if not from or not to or from == to then return false end
     local a, b = st.slots[from], st.slots[to]
     if not a then return false end
+    local allowed, why = guardStash(src, v, 'move', a.name, a.count)
+    if not allowed then return false, why end
     if b and b.name == a.name and Shared.IsStackable(a.name) and Shared.SameMeta(a.metadata, b.metadata) then
         local add = math.min(a.count, Shared.MaxStack(a.name) - b.count)
         if add <= 0 then return false, 'stack_full' end
@@ -1402,6 +1426,13 @@ end
 API.RegisterStash = RegisterStash
 API.RegisterShop = RegisterShop
 API.RegisterStashAccess = RegisterStashAccess
+API.RegisterStashGuard = function(prefix, cb) return RegisterStashGuard(prefix, cb) end
+-- Second inventaire ouvert par un joueur : { kind = 'stash' | 'shop' | 'player', id } ou nil
+function API.GetViewing(src)
+    local v = Viewing[tonumber(src) or -1]
+    if not v then return nil end
+    return { kind = v.kind, id = v.kind == 'stash' and (Containers[v.id] and Containers[v.id].def or v.id) or v.id }
+end
 function API.OpenInventory(src, kind, id) return ForceOpen(src, kind, id) end
 API.forceOpenInventory = API.OpenInventory
 function API.CloseInventory(src) TriggerClientEvent('elyzea_inv:forceClose', src) end
