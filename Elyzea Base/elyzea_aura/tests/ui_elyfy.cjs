@@ -121,11 +121,11 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   await noOverflow('mes titres');
   await p.click('.ef-cr[data-cid="2"] [data-pub]'); await wait(600);
   check(await p.$('.ef-cr[data-cid="2"] [data-pub].on') !== null, 'titre publié');
-  check((await p.textContent('[data-site] small')) === 'connexionsky9.github.io/ElyFy', 'lien du site ElyFy affiché sur la page');
+  check((await p.textContent('[data-site] small')) === 'elyzeafa.github.io/ElyFy', 'lien du site ElyFy affiché sur la page');
   await p.evaluate(() => { window.__opened = []; window.invokeNative = (n, u) => { if (n === 'openUrl') window.__opened.push(u); }; });
   await p.click('.ef-imp [data-pc]'); await wait(600);
-  check((await p.evaluate(() => window.__opened))[0] === 'https://connexionsky9.github.io/ElyFy/?code=K7P2QD', 'un appui : le site ElyFy s\'ouvre sur l\'ordinateur, code rempli');
-  check((await p.textContent('.ef-code')).replace(/\s/g, '') === 'K7P2QD' && (await p.textContent('.sheet .ef-open small')) === 'connexionsky9.github.io/ElyFy', 'fenêtre : bouton du site + code');
+  check((await p.evaluate(() => window.__opened))[0] === 'https://elyzeafa.github.io/ElyFy/?code=K7P2QD', 'un appui : le site ElyFy s\'ouvre sur l\'ordinateur, code rempli');
+  check((await p.textContent('.ef-code')).replace(/\s/g, '') === 'K7P2QD' && (await p.textContent('.sheet .ef-open small')) === 'elyzeafa.github.io/ElyFy', 'fenêtre : bouton du site + code');
   await p.click('[data-open-site]'); await wait(200);
   check((await p.evaluate(() => window.__opened)).length === 2, 'bouton de la fenêtre : rouvre le site');
   check((await p.textContent('#ef-exp')).includes('min'), 'durée de validité du code');

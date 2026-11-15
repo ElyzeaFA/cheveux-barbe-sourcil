@@ -622,7 +622,7 @@ const EFMock = (() => {
   const dl = () => ({ allowed: true, tier: 4, minTier: 4, max: 100, count: Object.values(states).filter(s => s.downloaded).length });
   const find = (k) => all.find(x => x.key === k);
   const H = {
-    efInit: () => ({ ok: true, artist, downloads: dl(), youtube: true, import: { enabled: true, maxMb: 15, page: 'https://connexionsky9.github.io/ElyFy/' },
+    efInit: () => ({ ok: true, artist, downloads: dl(), youtube: true, import: { enabled: true, maxMb: 15, page: 'https://elyzeafa.github.io/ElyFy/' },
       genres: [['rap', 'Rap', '#9B5CFF'], ['pop', 'Pop', '#FF6FB5'], ['electro', 'Électro', '#2EE6F0'], ['rnb', 'R&B', '#C9A6FF'], ['lofi', 'Lo-fi', '#6FE7F2'], ['rock', 'Rock', '#E8590C'], ['afro', 'Afro', '#3EE6B0'], ['ville', 'Créations de la ville', '#FF2D7A']].map(([id, label, color]) => ({ id, label, color })),
     }),
     efStates: () => ({ ok: true, states }),
@@ -646,7 +646,7 @@ const EFMock = (() => {
     efCreations: () => ({ ok: true, creations: crs.map(c => Object.assign({}, c)) }),
     efPublish: (a) => { const c = crs.find(x => x.id === a.id); c.public = a.public !== false; return { ok: true, public: c.public }; },
     efDeleteCreation: (a) => { crs = crs.filter(x => x.id !== a.id); return { ok: true }; },
-    efImportCode: () => ({ ok: true, code: 'K7P2QD', url: 'https://connexionsky9.github.io/ElyFy/', minutes: 15, maxMb: 15 }),
+    efImportCode: () => ({ ok: true, code: 'K7P2QD', url: 'https://elyzeafa.github.io/ElyFy/', minutes: 15, maxMb: 15 }),
     efUpload: (a) => { if (!a.url.startsWith('https://')) return { ok: false, error: 'Lien refusé' }; crs.unshift({ id: ++crid, kind: 'upload', key: 'ef:' + (crid + 10), title: a.title, artist, url: city[1].url, status: 'ready', public: !!a.public, plays: 0 }); return { ok: true, id: crid }; },
     // aperçu : simule un fichier envoyé depuis l'ordinateur
     __imported: (a) => { crs.unshift({ id: ++crid, kind: 'upload', key: 'ef:' + (crid + 10), title: a.title, artist, url: city[1].url, status: 'ready', public: false, plays: 0 }); return { ok: true }; },
