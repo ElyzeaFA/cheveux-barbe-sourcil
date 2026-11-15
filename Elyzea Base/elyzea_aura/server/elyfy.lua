@@ -277,7 +277,7 @@ EF_('efInit', function(src, me)
     local genres = {}
     for _, g in ipairs(GENRES) do genres[#genres + 1] = { id = g.id, label = g.label, color = g.color } end
     return { ok = true, artist = artist, downloads = Downloads(src, me), genres = genres, youtube = YtKey() ~= '',
-        import = { enabled = (CFG.Import or {}).Enabled ~= false, maxMb = int((CFG.Import or {}).MaxMB, 15) } }
+        import = { enabled = (CFG.Import or {}).Enabled ~= false, maxMb = int((CFG.Import or {}).MaxMB, 15), page = trim((CFG.Import or {}).Page or '', 200) } }
 end)
 
 EF_('efHome', function(src, me)

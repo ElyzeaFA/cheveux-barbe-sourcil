@@ -494,9 +494,11 @@ async function efMine(params, tok) {
         <button class="ef-imp__b" data-link>${efIco('link')}<b>${t('Avec un lien')}</b><small>${t('Fichier en ligne')}</small></button>
       </div></section>
     <div class="ef-pad">
+      ${imp.page ? `<button class="ef-open ef-open--site" data-site>${efIco('globe')}<span>${t('Site ElyFy (import depuis l\'ordinateur)')}<small>${esc(imp.page.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</small></span>${efIco('chev')}</button>` : ''}
       <div class="ef-artist"><span>${efIco('mic')}<b>${t('Nom d\'artiste')}</b></span><button data-artist>${esc(EF.init.artist || '')} ${efIco('edit')}</button></div>
       <h2 class="ef-h2">${t('Ma musique')}</h2><div id="ef-cr">${loading()}</div></div>`);
-  $('[data-pc]', main).onclick = () => efImportSheet();
+  $('[data-pc]', main).onclick = () => efImportSheet(true);
+  $('[data-site]', main)?.addEventListener('click', () => efImportSheet(true));
   $('[data-link]', main).onclick = () => efUploadSheet();
   $('[data-artist]', main).onclick = () => openSheet(t('Nom d\'artiste'), `<input class="field" id="ef-an" maxlength="40" value="${esc(EF.init.artist || '')}"><button class="btn btn--block ef-grad" id="ef-ango" style="margin-top:12px">${t('Enregistrer')}</button>`, (sh) => {
     sh.classList.add('ef-sheet');
@@ -534,15 +536,18 @@ function efOpenUrl(url) {
   if (typeof window.invokeNative === 'function') window.invokeNative('openUrl', url);
   else window.open(url, '_blank', 'noopener');
 }
-async function efImportSheet() {
+// Un appui : un code est créé et le site s'ouvre dans le navigateur de l'ordinateur, code déjà rempli
+const efSiteLink = (r) => r.url + (r.url.includes('?') ? '&' : '?') + 'code=' + encodeURIComponent(r.code);
+async function efImportSheet(openNow) {
   const r = await efApi('efImportCode');
   if (!r.ok) return efToast(efErr(r));
+  if (openNow) { efOpenUrl(efSiteLink(r)); efToast(t('Le site ElyFy s\'ouvre sur ton ordinateur (Alt+Tab pour y aller).')); }
   const end = Date.now() + r.minutes * 60000;
   const sh = openSheet(t('Depuis mon ordinateur'), `<div class="ef-impsheet">
       <ol class="ef-steps">
-        <li><b>1</b><span>${t('Ouvre le site sur ton ordinateur (le code est déjà rempli) :')}
+        <li><b>1</b><span>${t('Le site s\'ouvre sur ton ordinateur, code déjà rempli. Sinon, appuie ici :')}
           <button class="ef-open" data-open-site>${efIco('pc')}<span>${t('Ouvrir le site')}<small>${esc(r.url.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</small></span>${efIco('chev')}</button></span></li>
-        <li><b>2</b><span>${t('Tape ce code :')}</span></li>
+        <li><b>2</b><span>${t('Ou tape ce code sur le site :')}</span></li>
       </ol>
       <div class="ef-code">${esc(r.code.slice(0, 3))}<i></i>${esc(r.code.slice(3))}</div>
       <p class="ef-muted ef-small ef-center" id="ef-exp"></p>
@@ -550,10 +555,9 @@ async function efImportSheet() {
       <div class="ef-wait"><span class="ef-eq"><i></i><i></i><i></i><i></i></span>${t('En attente de ton fichier…')}</div>
       <button class="btn btn--block ef-btn2" data-new>${t('Nouveau code')}</button></div>`, (s) => {
     s.classList.add('ef-sheet');
-    $('[data-new]', s).onclick = () => { closeSheet(true); efImportSheet(); };
+    $('[data-new]', s).onclick = () => { closeSheet(true); efImportSheet(true); };
     $('[data-open-site]', s).onclick = () => {
-      const link = r.url + (r.url.includes('?') ? '&' : '?') + 'code=' + encodeURIComponent(r.code);
-      efOpenUrl(link);
+      efOpenUrl(efSiteLink(r));
       efToast(t('Le site s\'ouvre dans le navigateur de ton ordinateur (Alt+Tab pour y aller).'));
     };
   });
@@ -618,7 +622,7 @@ const EFMock = (() => {
   const dl = () => ({ allowed: true, tier: 4, minTier: 4, max: 100, count: Object.values(states).filter(s => s.downloaded).length });
   const find = (k) => all.find(x => x.key === k);
   const H = {
-    efInit: () => ({ ok: true, artist, downloads: dl(), youtube: true, import: { enabled: true, maxMb: 15 },
+    efInit: () => ({ ok: true, artist, downloads: dl(), youtube: true, import: { enabled: true, maxMb: 15, page: 'https://connexionsky9.github.io/ElyFy/' },
       genres: [['rap', 'Rap', '#9B5CFF'], ['pop', 'Pop', '#FF6FB5'], ['electro', 'Électro', '#2EE6F0'], ['rnb', 'R&B', '#C9A6FF'], ['lofi', 'Lo-fi', '#6FE7F2'], ['rock', 'Rock', '#E8590C'], ['afro', 'Afro', '#3EE6B0'], ['ville', 'Créations de la ville', '#FF2D7A']].map(([id, label, color]) => ({ id, label, color })),
     }),
     efStates: () => ({ ok: true, states }),
@@ -642,7 +646,7 @@ const EFMock = (() => {
     efCreations: () => ({ ok: true, creations: crs.map(c => Object.assign({}, c)) }),
     efPublish: (a) => { const c = crs.find(x => x.id === a.id); c.public = a.public !== false; return { ok: true, public: c.public }; },
     efDeleteCreation: (a) => { crs = crs.filter(x => x.id !== a.id); return { ok: true }; },
-    efImportCode: () => ({ ok: true, code: 'K7P2QD', url: 'https://monserveur-abc123.users.cfx.re/elyzea_aura/import', minutes: 15, maxMb: 15 }),
+    efImportCode: () => ({ ok: true, code: 'K7P2QD', url: 'https://connexionsky9.github.io/ElyFy/', minutes: 15, maxMb: 15 }),
     efUpload: (a) => { if (!a.url.startsWith('https://')) return { ok: false, error: 'Lien refusé' }; crs.unshift({ id: ++crid, kind: 'upload', key: 'ef:' + (crid + 10), title: a.title, artist, url: city[1].url, status: 'ready', public: !!a.public, plays: 0 }); return { ok: true, id: crid }; },
     // aperçu : simule un fichier envoyé depuis l'ordinateur
     __imported: (a) => { crs.unshift({ id: ++crid, kind: 'upload', key: 'ef:' + (crid + 10), title: a.title, artist, url: city[1].url, status: 'ready', public: false, plays: 0 }); return { ok: true }; },

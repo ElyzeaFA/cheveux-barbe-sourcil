@@ -192,6 +192,8 @@ if PHASE == 1 then
     check(priv.ok and find(call('efHome', 1).city, 'ef:' .. priv.id) == nil, 'titre ajouté par lien : privé tant qu\'il n\'est pas publié')
 
     print('— Import depuis l\'ordinateur')
+    check(call('efImportCode', 1).url == 'https://connexionsky9.github.io/ElyFy/' and call('efInit', 1).import.page == 'https://connexionsky9.github.io/ElyFy/', 'site ElyFy (GitHub) donné au téléphone')
+    AU.Config.ElyFy.Import.Page = ''
     check(call('efImportCode', 1).error:find('Url'), 'sans adresse publique du serveur : import non configuré (message clair)')
     PING_OK = true
     AU.ElyFyDetectImport()
