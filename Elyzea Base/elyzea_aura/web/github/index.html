@@ -50,6 +50,8 @@
   .hide { display: none !important; }
   .down { display: none; margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255,107,122,.12); color: var(--err); font-size: 14px; font-weight: 600; }
   .down.on { display: block; }
+  .down__b { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .down__b a { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.08); color: var(--text); text-decoration: none; font-size: 13px; }
   footer { margin-top: 20px; color: var(--dim); font-size: 12px; text-align: center; }
 </style>
 </head>
@@ -103,12 +105,28 @@
    ===================================================================== */
 const SERVER = 'https://TON-SERVEUR.users.cfx.re';
 const RESOURCE = 'elyzea_aura';
+// Secours : adresse directe du serveur (http://IP:PORT), proposée si l'adresse ci-dessus ne répond pas. '' = aucune.
+const SERVER_DIRECT = '';
 (() => {
   const $ = (s) => document.getElementById(s);
   const srv = (new URLSearchParams(location.search).get('s') || SERVER || '').trim().replace(/\/+$/, '');
   const base = srv ? srv + '/' + RESOURCE + '/import' : location.pathname.replace(/\/+$/, '').replace(/\/index\.html$/, '');
   let code = '', file = null, maxMb = 15;
+  // Appels au serveur du jeu : même site → fetch ; autre site (GitHub…) → JSONP (balise <script>, insensible au CORS)
+  let jn = 0;
+  const jsonp = (action, data) => new Promise((resolve) => {
+    const cb = '__ely' + (++jn) + Date.now();
+    const sc = document.createElement('script');
+    const done = (v) => { delete window[cb]; sc.remove(); clearTimeout(tm); resolve(v); };
+    const tm = setTimeout(() => done({ ok: false, error: 'Serveur injoignable. Réessaie.', down: true }), 12000);
+    window[cb] = (v) => done(v);
+    const q = new URLSearchParams(Object.assign({ action, cb }, data));
+    sc.src = base + '/api?' + q.toString();
+    sc.onerror = () => done({ ok: false, error: 'Serveur injoignable. Réessaie.', down: true });
+    document.head.appendChild(sc);
+  });
   const post = async (path, data) => {
+    if (srv) return jsonp(path, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, typeof v === 'boolean' ? (v ? '1' : '0') : String(v)])));
     try {
       const r = await fetch(base + '/' + path, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(data) });
       return await r.json();
@@ -119,8 +137,15 @@ const RESOURCE = 'elyzea_aura';
   // Le serveur du jeu répond-il ?
   {
     if (/TON-SERVEUR/.test(srv)) { $('down').textContent = 'Site pas encore configuré : le propriétaire doit mettre l\'adresse de son serveur dans index.html (SERVER).'; $('down').classList.add('on'); }
-    else fetch(base + '/ping').then(r => r.text()).then(t => { if (t.indexOf('elyfy-ok') < 0) throw 0; })
-      .catch(() => { $('down').textContent = 'Le serveur du jeu ne répond pas pour le moment (éteint ou adresse incorrecte). Réessaie plus tard.'; $('down').classList.add('on'); });
+    else (srv ? jsonp('ping', {}) : fetch(base + '/ping').then(r => r.text()).then(t => ({ ok: t.indexOf('elyfy-ok') >= 0 })).catch(() => ({ ok: false })))
+      .then((r) => {
+        if (r && r.ok) return;
+        const code = new URLSearchParams(location.search).get('code') || '';
+        $('down').innerHTML = 'Le serveur du jeu ne répond pas pour le moment (éteint ou adresse incorrecte).'
+          + '<span class="down__b"><a target="_blank" rel="noopener" href="' + base + '/ping">Tester le serveur</a>'
+          + (SERVER_DIRECT ? '<a href="' + SERVER_DIRECT.replace(/\/+$/, '') + '/' + RESOURCE + '/import' + (code ? '?code=' + encodeURIComponent(code) : '') + '">Ouvrir la page directe du serveur</a>' : '') + '</span>';
+        $('down').classList.add('on');
+      });
   }
   const pre = new URLSearchParams(location.search).get('code');
   if (pre) $('code').value = pre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);

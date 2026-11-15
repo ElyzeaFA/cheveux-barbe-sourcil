@@ -92,6 +92,7 @@ env.PerformHttpRequest = function(url, cb, method, body, headers)
     end
     cb(404, '', {})
 end
+env.SetHttpHandler = function(h) HTTPH = h end
 for _, f in ipairs({ 'elyzea_aura/config.lua', 'elyzea_aura/config_phones.lua', 'elyzea_aura/config_elyfy.lua', 'elyzea_aura/server/main.lua', 'elyzea_aura/server/elyfy.lua' }) do
     assert(load(py_read(f), '@' .. f, 't', env))()
 end
@@ -237,6 +238,19 @@ if PHASE == 1 then
     check(req('/import/check', { code = ic.code }) == 403 and req('/import/check', { code = ic2.code }) == 200, 'nouveau code : l\'ancien ne marche plus')
     for _ = 1, 8 do req('/import/check', { code = 'AAAAAA' }, '9.9.9.9:1') end
     check(req('/import/check', { code = ic2.code }, '9.9.9.9:1') == 429 and req('/import/check', { code = ic2.code }, '5.5.5.5:1') == 200, 'trop d\'essais ratés : cette adresse est bloquée 10 min')
+    -- JSONP (site GitHub) : GET /import/api?action=…&cb=…
+    local function jsonp(qs)
+        local out, ctype
+        HTTPH({ method = 'GET', path = '/import/api?' .. qs, headers = { ['X-Forwarded-For'] = '7.7.7.7' }, address = '10.0.0.1:1' },
+            { writeHead = function(_, h) ctype = h and h['Content-Type'] end, send = function(b) out = b end })
+        return out, ctype
+    end
+    local o1, ct = jsonp('action=ping&cb=cb1')
+    check(o1 and o1:find('^cb1%(') and o1:find('elyfy%-ok') and ct:find('javascript'), 'JSONP : ping (le site GitHub voit que le serveur répond)')
+    check(jsonp('action=check&cb=cb2&code=' .. ic2.code):find('"artist"', 1, true), 'JSONP : code vérifié')
+    local o3 = jsonp('action=finish&cb=cb3&code=' .. ic2.code .. '&url=' .. 'https%3A%2F%2Fr2.fivemanage.com%2Fabc%2Fj.mp3' .. '&title=Mon+titre+%C3%A9t%C3%A9&public=0')
+    check(o3:find('"ok"%s*:%s*true') and count("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE title = 'Mon titre été' AND public = 0") == 1, 'JSONP : titre importé (accents et espaces décodés)')
+    check(jsonp('action=check&cb=x%3Balert(1)&code=AAAAAA') == '', 'JSONP : nom de rappel dangereux refusé')
     check(not call('efDeleteCreation', 2, { id = mine[1].id }).ok, 'impossible de supprimer le titre d\'un autre')
     local c1 = mine[1]
     local del = call('efDeleteCreation', 1, { id = o.id })

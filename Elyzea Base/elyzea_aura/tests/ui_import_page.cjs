@@ -22,6 +22,17 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
     const u = new URL(r.request().url());
     if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors, body: '' });
     if (u.pathname.endsWith('/ping')) return r.fulfill({ status: 200, contentType: 'text/plain', headers: cors, body: 'elyfy-ok' });
+    if (u.pathname.endsWith('/api')) {   // JSONP (site hébergé ailleurs) : pas de CORS du tout
+      const q = Object.fromEntries(u.searchParams); const cb = q.cb; const act = q.action; delete q.cb; delete q.action;
+      if (act !== 'ping') calls.push(['/elyzea_aura/import/' + act, Object.assign({}, q, { public: q.public === '1', size: q.size && +q.size })]);
+      const js = (o) => r.fulfill({ status: 200, contentType: 'application/javascript', body: cb + '(' + JSON.stringify(o) + ');' });
+      if (act === 'ping') return js({ ok: true, ping: 'elyfy-ok' });
+      if (q.code !== 'K7P2QD') return js({ ok: false, status: 403, error: 'Code invalide ou expiré.' });
+      if (act === 'check') return js({ ok: true, artist: 'Léna D.', maxMb: 15 });
+      if (act === 'start') return js({ ok: true, uploadUrl: 'https://upload.test/once' });
+      if (act === 'finish') return js({ ok: true, id: 7 });
+    }
+    if (GH) return r.fulfill({ status: 500, body: '' });   // en mode GitHub, rien d'autre ne doit être appelé
     if (r.request().method() === 'GET') return r.fulfill({ status: 200, contentType: 'text/html', body: html });
     const d = JSON.parse(r.request().postData() || '{}'); calls.push([u.pathname, d]);
     const j = (s, o) => r.fulfill({ status: s, contentType: 'application/json', headers: cors, body: JSON.stringify(o) });

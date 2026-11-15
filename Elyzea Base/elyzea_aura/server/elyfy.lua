@@ -716,10 +716,42 @@ local function ClientIp(req)
     local xff = h['X-Forwarded-For'] or h['x-forwarded-for']
     return (type(xff) == 'string' and xff:match('^%s*([^,%s]+)')) or req.address
 end
+-- Paramètres d'une adresse (?a=1&b=2)
+local function Query(raw)
+    local q = {}
+    local qs = tostring(raw or ''):match('%?(.*)$') or ''
+    for k, v in qs:gmatch('([^&=]+)=([^&]*)') do
+        local function dec(x) return (x:gsub('%+', ' '):gsub('%%(%x%x)', function(h) return string.char(tonumber(h, 16)) end)) end
+        q[dec(k)] = dec(v)
+    end
+    return q
+end
+-- JSONP : la page (GitHub…) charge un <script> au lieu d'un fetch, ce qui marche même si un relais
+-- (users.cfx.re) abîme les en-têtes CORS. GET /import/api?action=check|start|finish|ping&cb=…
+local function Jsonp(res, cb, code, out)
+    out.status = code
+    res.writeHead(200, { ['Content-Type'] = 'application/javascript; charset=utf-8', ['Cache-Control'] = 'no-store' })
+    res.send(cb .. '(' .. json.encode(out) .. ');')
+end
 SetHttpHandler(function(req, res)
     local path = tostring(req.path or '/'):gsub('%?.*$', ''):gsub('/+$', '')
     if path == '' then path = '/' end
     if req.method == 'OPTIONS' then res.writeHead(204, H({})) res.send('') return end
+    if req.method == 'GET' and path == '/import/api' then
+        local q = Query(req.path)
+        local cb = tostring(q.cb or '')
+        if not cb:match('^[%w_%.]+$') or #cb > 60 then res.writeHead(400, { ['Content-Type'] = 'text/plain' }) res.send('') return end
+        local action = tostring(q.action or '')
+        if action == 'ping' then return Jsonp(res, cb, 200, { ok = true, ping = 'elyfy-ok' }) end
+        if action ~= 'check' and action ~= 'start' and action ~= 'finish' then return Jsonp(res, cb, 404, { ok = false }) end
+        local body = json.encode({ code = q.code, size = tonumber(q.size), type = q.type, url = q.url, title = q.title, public = q.public == '1' })
+        CreateThread(function()
+            local ok, code, out = pcall(ImportRequest, '/import/' .. action, ClientIp(req), body)
+            if not ok then print('^1[elyzea_aura] ElyFy (import) : ' .. tostring(code) .. '^0') code, out = 500, { ok = false, error = 'Erreur du serveur' } end
+            Jsonp(res, cb, code, out)
+        end)
+        return
+    end
     if req.method == 'GET' and path == '/import/ping' then
         res.writeHead(200, H({ ['Content-Type'] = 'text/plain' }))
         res.send('elyfy-ok')
