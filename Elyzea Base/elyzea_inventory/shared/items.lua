@@ -341,6 +341,19 @@ do
     end
 end
 
+-- ───────── Lettres (elyzea_lettres) ─────────
+-- Une lettre n'est qu'une clé (métadonnée « letter ») : son texte est gardé par elyzea_lettres (table elyzea_letters).
+-- Elle se donne, se pose, se range dans un coffre comme tout objet ; chaque lettre est unique (non empilable).
+Items.feuille_papier = { label = 'Feuille de papier', weight = 5, stack = true, max = 50, image = 'feuille_papier.png', icon = '📄', close = true,
+    description = 'Feuille vierge. Utiliser (avec un stylo à bille) pour écrire une lettre. Elle n\'est utilisée que si la lettre est terminée.' }
+Items.stylo_bille = { label = 'Stylo à bille', weight = 10, stack = true, max = 5, image = 'stylo_bille.png', icon = '🖊️', close = true,
+    description = 'Nécessaire pour écrire une lettre. Il ne s\'use pas.' }
+Items.lettre = { label = 'Lettre', weight = 5, stack = false, image = 'lettre.png', icon = '✉️', close = true, category = 'papers',
+    description = 'Lettre manuscrite. Utiliser pour la lire.' }
+Items.enveloppe = { label = 'Enveloppe', weight = 5, stack = true, max = 20, image = 'enveloppe.png', icon = '✉️',
+    description = 'Enveloppe vide. Ouvrez une lettre terminée puis « Mettre sous enveloppe ».' }
+Items.enveloppe_lettre = { label = 'Enveloppe', weight = 10, stack = false, image = 'enveloppe_lettre.png', icon = '💌', close = true, category = 'papers',
+    description = 'Enveloppe contenant une lettre. Utiliser pour l\'ouvrir et la lire.' }
 -- Tags (elyzea_tags) : peindre / effacer un graffiti
 Items.spraycan = { label = 'Bombe de peinture', weight = 350, stack = true, max = 10, image = 'spraycan.png', icon = '🎨',
     description = 'Peins un tag sur un mur de ton quartier.' }

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Lettres</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app" class="hidden">
+    <div id="backdrop"></div>
+
+    <!-- Feuille (rédaction, aperçu, lecture) -->
+    <div id="stage">
+      <button class="nav prev" id="prev" title="Page précédente (←)" aria-label="Page précédente">‹</button>
+      <div id="sheet-wrap"><div id="sheet" class="page"></div></div>
+      <button class="nav next" id="next" title="Page suivante (→)" aria-label="Page suivante">›</button>
+    </div>
+
+    <!-- Enveloppe -->
+    <div id="envelope-stage" class="hidden">
+      <div id="envelope">
+        <div class="env-flap"></div>
+        <div class="env-stamp"><span>ELYZEA</span><b>1,20</b></div>
+        <div class="env-to"><span class="env-lbl">À</span> <span id="env-name"></span></div>
+        <div class="env-seal" id="env-seal"><span>E</span></div>
+      </div>
+    </div>
+
+    <!-- Champs de saisie réels (invisibles) : le texte tapé s'affiche sur la feuille -->
+    <div id="inputs" aria-hidden="false">
+      <input id="in-recipient" data-field="recipient" type="text" autocomplete="off" spellcheck="false">
+      <textarea id="in-body" data-field="body" autocomplete="off" spellcheck="false"></textarea>
+      <input id="in-signature" data-field="signature" type="text" autocomplete="off" spellcheck="false">
+    </div>
+
+    <!-- Barre d'outils -->
+    <div id="bar">
+      <div class="bar-row" id="bar-write">
+        <div class="group" id="fonts"></div>
+        <div class="group" id="papers"></div>
+        <div class="sep"></div>
+        <div class="info"><span id="count">0 / 0</span><span id="pageinfo"></span></div>
+        <div class="sep"></div>
+        <button class="btn ghost" id="btn-cancel">Annuler</button>
+        <button class="btn" id="btn-preview">Aperçu</button>
+        <button class="btn primary" id="btn-finish">Terminer la lettre</button>
+      </div>
+      <div class="bar-row hidden" id="bar-read">
+        <div class="info"><span id="read-info"></span></div>
+        <div class="sep"></div>
+        <button class="btn hidden" id="btn-envelope">Mettre sous enveloppe</button>
+        <button class="btn hidden" id="btn-takeout">Sortir la lettre de l'enveloppe</button>
+        <button class="btn primary" id="btn-close">Fermer</button>
+      </div>
+      <div class="bar-row hidden" id="bar-envelope">
+        <button class="btn primary" id="btn-open-env">Ouvrir l'enveloppe</button>
+        <button class="btn" id="btn-close-env">Fermer</button>
+      </div>
+      <div class="hint" id="hint"></div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+
+    <!-- Fenêtre de confirmation -->
+    <div id="modal" class="hidden">
+      <div class="modal-card">
+        <h2 id="modal-title"></h2>
+        <p id="modal-text"></p>
+        <div class="modal-btns" id="modal-btns"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/layout.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
