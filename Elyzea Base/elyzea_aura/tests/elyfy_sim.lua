@@ -107,13 +107,11 @@ end
 local function count(sql, a) return tonumber(py_scalar(sql, a)) or 0 end
 install(1, { 'elyfy' }) install(2, { 'elyfy' }) install(3, {})
 AU.Config.ElyFy.YouTubeApiKey = 'YTKEY'
-AU.Config.ElyFy.AI.Token = 'r8_test'
 BANK = { [1] = 10000, [2] = 1000, [3] = 0 }
 AU.AuraCore.RemoveBank = function(src, n) if (BANK[src] or 0) < n then return false end BANK[src] = BANK[src] - n return true end
 AU.AuraCore.AddBank = function(src, n) BANK[src] = (BANK[src] or 0) + n return true end
 OFFLINE = {}
 AU.AuraCore.AddBankOffline = function(id, n) OFFLINE[id] = (OFFLINE[id] or 0) + n return true end
-local function tick() AU.ElyFyTick() end
 local function find(list, key) for _, t in ipairs(list or {}) do if t.key == key then return t end end end
 
 if PHASE == 1 then
@@ -121,7 +119,7 @@ if PHASE == 1 then
     check(count("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'elyzea_ef_%'") == 7, '7 tables ElyFy créées')
     check(not call('efInit', 3).ok, 'ElyFy non installé : refusé')
     local init = call('efInit', 1)
-    check(init.ok and init.downloads.allowed and init.downloads.max == 100 and init.ai.enabled and init.ai.price == 2500 and #init.styles == 12 and init.youtube, 'ElyAura 4 : téléchargements (100), studio IA, 12 instrus, YouTube')
+    check(init.ok and init.downloads.allowed and init.downloads.max == 100 and init.import.enabled and init.import.maxMb == 15 and init.ai == nil and init.youtube, 'ElyAura 4 : téléchargements (100), import de musique, plus de studio IA, YouTube')
     check(not call('efInit', 2).downloads.allowed, 'ElyAura 3 : pas de téléchargement')
 
     print('— Catalogue')
@@ -177,7 +175,7 @@ if PHASE == 1 then
     print('— Artistes de la ville')
     check(not call('efUpload', 2, { title = 'X', url = 'https://evil.test/a.mp3' }).ok, 'publication : hébergeur non autorisé refusé')
     call('efArtist', 2, { name = 'MC Malik' })
-    local up = call('efUpload', 2, { title = 'Los Santos Flow', url = 'https://r2.fivemanage.com/abc/flow.mp3', lyrics = 'Ma ville la nuit' })
+    local up = call('efUpload', 2, { title = 'Los Santos Flow', url = 'https://r2.fivemanage.com/abc/flow.mp3', lyrics = 'Ma ville la nuit', public = true })
     check(up.ok, 'titre publié par un artiste')
     local city = call('efHome', 1).city
     check(#city == 1 and city[1].artist == 'MC Malik' and city[1].source == 'city' and city[1].lyrics == 'Ma ville la nuit', 'créations de la ville (artiste, paroles)')
@@ -185,75 +183,53 @@ if PHASE == 1 then
     call('efLike', 1, { key = 'ef:' .. up.id })
     check(count('SELECT plays FROM elyzea_ef_tracks WHERE id = ?', { up.id }) == 1 and count('SELECT likes FROM elyzea_ef_tracks WHERE id = ?', { up.id }) == 1, 'écoutes (une fois / 10 min) et j\'aime comptés')
 
-    print('— Studio IA')
-    check(call('efAiCreate', 1, { title = 'Ma ville', lyrics = 'court', style = 'trap' }).error ~= nil, 'paroles trop courtes refusées')
-    check(call('efAiCreate', 1, { title = 'Ma ville', lyrics = string.rep('la la la ', 5), style = 'inconnu' }).error ~= nil, 'instru obligatoire')
-    Clock = Clock + 10000
-    check(call('efAiCreate', 2, { title = 'Trop cher', lyrics = string.rep('la la la ', 5), style = 'trap' }).error:find('Solde'), 'solde insuffisant : refusé')
-    local LY = '[Couplet]\nJe roule la nuit sur Vinewood\nLes lumières de la ville\n[Refrain]\nLos Santos, ma ville, mon histoire'
-    Clock = Clock + 10000
-    local c1 = call('efAiCreate', 1, { title = 'Ma ville', lyrics = LY, style = 'trap', mood = 'Sombre', voice = 'f' })
-    check(c1.ok and BANK[1] == 7500, 'création payée (2 500 $)')
-    tick()
-    local pred = PRED[PRED[1]]
-    check(pred and pred.input.lyrics:find('%[Verse%]') and pred.input.lyrics:find('%[Chorus%]') and pred.input.prompt:find('French trap') and pred.input.prompt:find('dark') and pred.input.prompt:find('female vocals') and pred.input.audio_format == 'mp3' and pred.auth == 'Bearer r8_test',
-        'envoyé à l\'IA : paroles balisées, instru + ambiance + voix, jeton côté serveur')
-    check(count("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE id = ? AND status = 'processing'", { c1.id }) == 1, 'création en cours')
-    pred.status = 'succeeded'
-    tick()
-    local cr = call('efCreations', 1).creations
-    check(cr[1].status == 'ready_temp' and cr[1].temp_url == 'https://replicate.delivery/pred1/song.mp3', 'chanson prête (fichier temporaire du fournisseur)')
-    local pushed = false
-    for _, e in ipairs(Sent) do if e.name == 'elyzea_aura:client:elyfy' and e.src == 1 and e.args[1].type == 'ai' and e.args[1].status == 'ready_temp' then pushed = true end end
-    check(pushed, 'le téléphone du créateur est prévenu (copie du fichier)')
-    check(call('efUploadUrl', 1).url == 'https://api.fivemanage.com/upload/once', 'lien d\'envoi à usage unique (audio)')
-    check(not call('efAiSaved', 1, { id = c1.id, url = 'https://evil.test/x.mp3' }).ok, 'sauvegarde : hébergeur refusé')
-    check(not call('efAiSaved', 2, { id = c1.id, url = 'https://r2.fivemanage.com/x/song.mp3' }).ok, 'sauvegarde : pas la chanson d\'un autre')
-    check(call('efAiSaved', 1, { id = c1.id, url = 'https://r2.fivemanage.com/x/song.mp3' }).ok, 'chanson sauvegardée sur l\'hébergeur du serveur')
-    cr = call('efCreations', 1).creations
-    check(cr[1].status == 'ready' and cr[1].url == 'https://r2.fivemanage.com/x/song.mp3' and not cr[1].public, 'chanson prête, privée par défaut')
-    check(call('efLike', 2, { key = 'ef:' .. c1.id }).ok == false, 'chanson privée : invisible pour les autres')
-    check(call('efPublish', 1, { id = c1.id }).public, 'publiée sur ElyFy')
-    check(call('efLike', 2, { key = 'ef:' .. c1.id }).ok, 'publiée : les autres peuvent l\'écouter et l\'aimer')
-    -- échec du fournisseur : remboursé
-    Clock = Clock + 10000
-    local c2 = call('efAiCreate', 1, { title = 'Échec', lyrics = LY, style = 'pop' })
-    tick()
-    PRED[PRED[2]].status = 'failed' PRED[PRED[2]].error = 'boom'
-    tick()
-    check(count("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE id = ? AND status = 'failed'", { c2.id }) == 1 and BANK[1] == 7500, 'échec de l\'IA : remboursé')
-    -- refus immédiat (contenu) : remboursé
-    Clock = Clock + 10000
-    local c3 = call('efAiCreate', 1, { title = 'Refus', lyrics = 'REFUS ' .. LY, style = 'pop' })
-    tick()
-    check(count("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE id = ? AND status = 'failed' AND error LIKE '%refusé%'", { c3.id }) == 1 and BANK[1] == 7500, 'demande refusée par l\'IA : remboursée')
-    -- limite par jour (les échecs ne comptent pas)
-    Clock = Clock + 10000
-    local c4 = call('efAiCreate', 1, { title = 'Deux', lyrics = LY, style = 'lofi' })
-    Clock = Clock + 10000
-    local c5 = call('efAiCreate', 1, { title = 'Trois', lyrics = LY, style = 'lofi' })
-    Clock = Clock + 10000
-    check(c4.ok and c5.ok and call('efAiCreate', 1, { title = 'Quatre', lyrics = LY, style = 'lofi' }).error:find('Limite'), 'limite : 3 créations par jour')
-    -- fichier jamais sauvegardé : remboursé
-    tick()
-    PRED[PRED[3]].status = 'succeeded'
-    tick()
-    py_update("UPDATE elyzea_ef_tracks SET ready_at = NOW() - INTERVAL 2 HOUR WHERE id = ?", { c4.id })
-    tick()
-    check(count("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE id = ? AND status = 'failed'", { c4.id }) == 1, 'fichier jamais sauvegardé (lien expiré) : échec et remboursement')
-    -- copie faite par le serveur (le téléphone n'a rien à faire)
-    DL_OK = true
-    PRED[PRED[4]].status = 'succeeded'
-    tick()
-    local row = py_query('SELECT status, url FROM elyzea_ef_tracks WHERE id = ?', { c5.id })[1]
-    check(row.status == 'ready' and row.url == 'https://r2.fivemanage.com/srv/song.mp3' and UPLOADED and UPLOADED:find('\0\255ID3', 1, true) and UPLOADED:find('audio/mpeg', 1, true),
-        'copie par le serveur : fichier téléchargé puis envoyé sur l\'hébergeur (octets intacts), chanson prête')
-    DL_OK = false
-    -- studio désactivé
-    AU.Config.ElyFy.AI.Token = ''
-    check(call('efAiCreate', 1, { title = 'X', lyrics = LY, style = 'pop' }).error:find('pas encore activé'), 'sans jeton : studio désactivé (rien n\'est débité)')
-    AU.Config.ElyFy.AI.Token = 'r8_test'
-    check(call('efDeleteCreation', 1, { id = c2.id }).ok, 'création en échec supprimée')
+    print('— Lien privé par défaut')
+    local priv = call('efUpload', 2, { title = 'Démo', url = 'https://r2.fivemanage.com/abc/demo.mp3' })
+    check(priv.ok and find(call('efHome', 1).city, 'ef:' .. priv.id) == nil, 'titre ajouté par lien : privé tant qu\'il n\'est pas publié')
+
+    print('— Import depuis l\'ordinateur')
+    check(call('efImportCode', 1).error:find('Url'), 'sans adresse publique du serveur : import non configuré (message clair)')
+    AU.Config.ElyFy.Import.Url = 'https://srv-abc.users.cfx.re/'
+    local ic = call('efImportCode', 1)
+    check(ic.ok and #ic.code == 6 and ic.url == 'https://srv-abc.users.cfx.re/elyzea_aura/import' and ic.minutes == 15, 'code à 6 caractères + adresse de la page d\'import')
+    local function req(path, t, ip) return AU.ElyFyImportRequest(path, ip or '1.2.3.4:5000', py_json_encode(t)) end
+    local c, o = req('/import/check', { code = 'ZZZZZZ' })
+    check(c == 403 and o.error:find('Code invalide'), 'mauvais code refusé')
+    c, o = req('/import/check', { code = ic.code:lower() })
+    check(c == 200 and o.ok and o.maxMb == 15, 'bon code (minuscules acceptées) : page débloquée')
+    c, o = req('/import/start', { code = ic.code, size = 20 * 1024 * 1024, type = 'audio/mpeg' })
+    check(c == 400 and o.error:find('trop lourd'), 'fichier trop lourd refusé')
+    c, o = req('/import/start', { code = ic.code, size = 1000, type = 'image/png' })
+    check(c == 400 and o.error:find('audio'), 'fichier non audio refusé')
+    c, o = req('/import/start', { code = ic.code, size = 3000000, type = 'audio/mpeg' })
+    check(c == 200 and o.uploadUrl == 'https://api.fivemanage.com/upload/once', 'lien d\'envoi à usage unique de l\'hébergeur (la clé reste sur le serveur)')
+    c, o = req('/import/finish', { code = ic.code, url = 'https://evil.test/x.mp3', title = 'X' })
+    check(c == 400, 'lien d\'un autre site refusé')
+    Sent = {}
+    c, o = req('/import/finish', { code = ic.code, url = 'https://r2.fivemanage.com/abc/mon_son.mp3', title = 'Mon son' })
+    check(c == 200 and o.ok, 'titre importé')
+    local pushed, notified = false, false
+    for _, e in ipairs(Sent) do
+        if e.src == 1 and e.name == 'elyzea_aura:client:elyfy' and e.args[1].type == 'imported' then pushed = true end
+        if e.src == 1 and e.name == 'elyzea_aura:client:notify' and e.args[1].key == 'efImported' then notified = true end
+    end
+    check(pushed and notified, 'le téléphone est prévenu tout de suite')
+    local mine = call('efCreations', 1).creations
+    check(#mine == 1 and mine[1].title == 'Mon son' and not mine[1].public and mine[1].kind == 'upload', 'dans « Mes titres », privé par défaut')
+    check(find(call('efHome', 2).city, mine[1].key) == nil, 'privé : invisible pour les autres')
+    c, o = req('/import/finish', { code = ic.code, url = 'https://r2.fivemanage.com/abc/deux.mp3', title = 'Deuxième', public = true })
+    check(o.ok and find(call('efHome', 2).city, 'ef:' .. o.id) ~= nil, 'même code : deuxième titre importé et publié directement')
+    check(call('efPublish', 1, { id = mine[1].id }).public and find(call('efHome', 2).city, mine[1].key) ~= nil, 'publié ensuite depuis le téléphone')
+    check(call('efLike', 2, { key = mine[1].key, like = true }).ok, 'les autres peuvent l\'écouter et l\'aimer')
+    local ic2 = call('efImportCode', 1)
+    check(req('/import/check', { code = ic.code }) == 403 and req('/import/check', { code = ic2.code }) == 200, 'nouveau code : l\'ancien ne marche plus')
+    for _ = 1, 8 do req('/import/check', { code = 'AAAAAA' }, '9.9.9.9:1') end
+    check(req('/import/check', { code = ic2.code }, '9.9.9.9:1') == 429 and req('/import/check', { code = ic2.code }, '5.5.5.5:1') == 200, 'trop d\'essais ratés : cette adresse est bloquée 10 min')
+    check(not call('efDeleteCreation', 2, { id = mine[1].id }).ok, 'impossible de supprimer le titre d\'un autre')
+    local c1 = mine[1]
+    local del = call('efDeleteCreation', 1, { id = o.id })
+    check(del.ok and count('SELECT COUNT(*) FROM elyzea_ef_tracks WHERE id = ?', { o.id }) == 0, 'titre supprimé')
+    c1 = { id = c1.id }
     py_query("CREATE TABLE IF NOT EXISTS sim_state (k VARCHAR(10) PRIMARY KEY, v INT)")
     py_update('REPLACE INTO sim_state VALUES (?, ?), (?, ?)', { 'c1', c1.id, 'pl', p.id })
 else
@@ -264,7 +240,7 @@ else
     check(#call('efDownloads', 1).tracks == 1, 'téléchargements conservés')
     check(#call('efPlaylist', 1, { id = pl }).playlist.tracks == 1, 'playlists conservées')
     local city = call('efHome', 2).city
-    check(find(city, 'ef:' .. c1) ~= nil, 'chanson IA publiée toujours dans les créations de la ville')
+    check(find(city, 'ef:' .. c1) ~= nil, 'titre importé et publié toujours dans les créations de la ville')
     check(call('efLike', 2, { key = 'ef:' .. c1, like = true }).ok, 'titre de la ville retrouvé par sa clé après redémarrage')
 end
 print(('\n%d ok, %d échec(s)'):format(Oks, Fails))

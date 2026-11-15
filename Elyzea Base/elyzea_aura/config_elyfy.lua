@@ -1,5 +1,5 @@
 -- =========================================================
---  ELYFY : streaming musical du téléphone (+ studio IA)
+--  ELYFY : streaming musical du téléphone (+ import de musique depuis l'ordinateur)
 --  Fichier séparé de config.lua : ton config.lua (clé d'hébergeur…) n'est pas touché.
 -- =========================================================
 Config.ElyFy = {
@@ -24,40 +24,15 @@ Config.ElyFy = {
     PlaylistsMax = 50,
     PlaylistItemsMax = 300,
 
-    -- ---------- Studio IA : paroles + instru → chanson (comme Suno) ----------
-    -- Fournisseur : Replicate (replicate.com > API tokens). Modèle de musique avec paroles : minimax/music-1.5.
-    -- Le jeton reste sur le serveur : il n'est jamais envoyé aux joueurs.
-    AI = {
+    -- ---------- Import depuis l'ordinateur (onglet « Mes titres ») ----------
+    -- Le téléphone donne un code et l'adresse d'une page web servie par ce serveur ; le joueur y envoie son fichier audio
+    -- depuis le navigateur de son ordinateur. Le fichier part sur l'hébergeur de l'appareil photo (Fivemanage, Config.Camera).
+    Import = {
         Enabled = true,
-        Token = '',                       -- jeton Replicate (r8_...). Mieux : dans server.cfg  set elyfy_replicate_token "r8_..."  (jamais écrasé par une mise à jour)
-        Model = 'minimax/music-1.5',      -- 'proprio/modele' ou 'proprio/modele:version'
-        LyricsField = 'lyrics',           -- champ « paroles » du modèle
-        PromptField = 'prompt',           -- champ « style / instru » du modèle
-        Extra = { audio_format = 'mp3' }, -- champs en plus envoyés au modèle
-        Price = 2500,                     -- prix d'une création ($ en banque), remboursé si elle échoue
-        DailyPerPlayer = 3,               -- créations par personnage et par jour
-        DailyServer = 60,                 -- créations par jour pour tout le serveur (protège ta facture)
-        Concurrent = 4,                   -- créations envoyées en même temps au fournisseur
-        LyricsMax = 600,                  -- caractères de paroles
-        TimeoutMinutes = 15,              -- au-delà : échec et remboursement
-        -- Le fichier du fournisseur expire (~1 h) : le téléphone du créateur le copie sur ton hébergeur
-        -- (même méthode que l'appareil photo, UploadMethod = 'presigned'). Sinon : échec et remboursement.
-        KeepTempMinutes = 55,
+        -- Adresse publique du serveur, sans / à la fin. Vide = automatique (adresse cfx.re du serveur, convar web_baseUrl).
+        -- Exemples : 'https://monserveur-abc123.users.cfx.re'  ou  'http://123.45.67.89:30120'
+        Url = '',
+        MaxMB = 15,          -- taille maximale d'un fichier
+        CodeMinutes = 15,    -- durée de validité d'un code
     },
-    -- Instrus proposées (style envoyé à l'IA). Libellé, couleur de la carte, description pour le modèle.
-    Styles = {
-        { id = 'trap',    label = 'Trap',          color = '#9B5CFF', prompt = 'French trap, 140 BPM, heavy 808 bass, fast hi-hats, dark atmospheric pads, modern mix' },
-        { id = 'drill',   label = 'Drill',         color = '#FF2D55', prompt = 'UK drill, 142 BPM, sliding 808, syncopated hi-hats, dark piano, aggressive' },
-        { id = 'boom',    label = 'Rap old school', color = '#FFB547', prompt = '90s boom bap hip hop, 90 BPM, dusty drums, vinyl crackle, jazzy sample' },
-        { id = 'afro',    label = 'Afro',          color = '#3EE6B0', prompt = 'Afrobeats, 105 BPM, log drums, bouncy percussion, warm guitar, sunny vibe' },
-        { id = 'pop',     label = 'Pop',           color = '#FF6FB5', prompt = 'Catchy modern pop, 120 BPM, bright synths, punchy drums, radio ready' },
-        { id = 'rnb',     label = 'R&B',           color = '#C9A6FF', prompt = 'Smooth contemporary R&B, 75 BPM, soft keys, deep bass, intimate' },
-        { id = 'lofi',    label = 'Lo-fi',         color = '#6FE7F2', prompt = 'Lo-fi chill hop, 80 BPM, mellow piano, soft drums, warm tape saturation' },
-        { id = 'rock',    label = 'Rock',          color = '#E8590C', prompt = 'Energetic rock, 130 BPM, distorted electric guitars, live drums, powerful' },
-        { id = 'electro', label = 'Électro',       color = '#2EE6F0', prompt = 'Electro house, 126 BPM, big synth leads, four on the floor, club energy' },
-        { id = 'reggaeton', label = 'Reggaeton',   color = '#F59E0B', prompt = 'Reggaeton, 95 BPM, dembow rhythm, latin percussion, catchy' },
-        { id = 'zouk',    label = 'Zouk / Kompa',  color = '#EC4899', prompt = 'Caribbean zouk kompa, 95 BPM, romantic guitars, smooth groove' },
-        { id = 'ballade', label = 'Ballade piano', color = '#A99BC9', prompt = 'Emotional piano ballad, 70 BPM, strings, cinematic, heartfelt' },
-    },
-    Moods = { 'Énergique', 'Mélancolique', 'Chill', 'Sombre', 'Joyeux', 'Romantique', 'Motivant', 'Festif' },
 }

@@ -1,14 +1,14 @@
 'use strict';
 /* =========================================================
-   ELYFY : streaming musical (aux couleurs d'Elyzea) + studio IA
+   ELYFY : streaming musical (aux couleurs d'Elyzea) + import de musique
    Accueil (récents, tendances, créations de la ville, mixes), Rechercher (genres, titres, lien collé),
-   Bibliothèque (titres likés, téléchargements, playlists), Studio IA (paroles + instru → chanson),
+   Bibliothèque (titres likés, téléchargements, playlists), Mes titres (musique importée depuis l'ordinateur ou par lien),
    lecteur plein écran et mini-lecteur. La lecture passe par le lecteur du téléphone (Music) :
    haut-parleur, île dynamique et commandes communes avec Itoune.
    Toutes les données viennent du serveur (server/elyfy.lua).
    ========================================================= */
 const EF = {
-  ready: false, tok: 0, init: null, states: {}, np: false, from: '', rehosting: {}, studio: null,
+  ready: false, tok: 0, init: null, states: {}, np: false, from: '', importSheet: null,
 };
 const efApi = (name, args = {}) => IS_BROWSER ? EFMock.call(name, args) : api(name, args);
 
@@ -37,6 +37,7 @@ const EFI = {
   trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  pc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/>',
   spark: '<path d="M12 2.5 13.8 9 20.5 11 13.8 13 12 19.5 10.2 13 3.5 11 10.2 9z" fill="currentColor"/><path d="M19 3v4M17 5h4" />',
   globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5S9.6 5.9 12 3.5z"/>',
@@ -98,7 +99,7 @@ async function efDownload(tr, after) {
 async function efLoadStates() { const r = await efApi('efStates'); if (r.ok) EF.states = r.states || {}; }
 
 /* ---------- Navigation ---------- */
-const EF_ROOTS = ['home', 'search', 'library', 'studio'];
+const EF_ROOTS = ['home', 'search', 'library', 'mine'];
 function efGo(page, params = {}) { openApp('elyfy', Object.assign({ page }, params)); }
 function efTab(page) {
   closeSheet(true); efCloseNow();
@@ -128,7 +129,7 @@ function efShell(page, body) {
   appView.innerHTML = `<div class="ef" data-page="${page}">
     <main class="ef-main" id="ef-main">${body}</main>
     <div id="ef-mini"></div>
-    <nav class="ef-nav">${nav('home', 'home', 'Accueil')}${nav('search', 'search', 'Rechercher')}${nav('library', 'library', 'Bibliothèque')}${nav('studio', 'studio', 'Studio IA')}</nav>
+    <nav class="ef-nav">${nav('home', 'home', 'Accueil')}${nav('search', 'search', 'Rechercher')}${nav('library', 'library', 'Bibliothèque')}${nav('mine', 'upload', 'Mes titres')}</nav>
   </div>`;
   $$('[data-tab]', appView).forEach(b => b.onclick = () => efTab(b.dataset.tab));
   efMini();
@@ -335,7 +336,7 @@ async function efHome(params, tok) {
   const quick = [
     { id: 'liked', label: t('Titres likés'), cls: 'liked', icon: 'heart', go: () => efGo('liked') },
     { id: 'dl', label: t('Téléchargements'), cls: 'dl', icon: 'down', go: () => efGo('downloads') },
-    { id: 'studio', label: t('Mes créations IA'), cls: 'ai', icon: 'spark', go: () => efTab('studio') },
+    { id: 'mine', label: t('Mes titres'), cls: 'ai', icon: 'upload', go: () => efTab('mine') },
     ...(r.playlists || []).slice(0, 3).map(p => ({ id: 'p' + p.id, label: p.name, cls: '', icon: 'library', go: () => efGo('playlist', { id: p.id }) })),
   ].slice(0, 6);
   const sec = (title, list, key, more = '') => list && list.length ? `<h2 class="ef-h2">${title}${more}</h2>${efCards(list, key)}` : '';
@@ -347,7 +348,7 @@ async function efHome(params, tok) {
     ${sec(t('Nouveautés de la ville'), r.fresh, 'fresh')}
     <h2 class="ef-h2">${t('Vos mixes')}</h2>
     <div class="ef-carousel">${(r.mixes || []).map(m => `<button class="ef-mix" data-genre="${m.id}" style="--g:${m.color}"><span>${esc(m.label)}</span><small>${t('Mix')}</small></button>`).join('')}</div>
-    ${!(r.trending || []).length && !(r.city || []).length ? `<p class="ef-muted ef-empty">${t('Le catalogue se charge… Cherchez un titre ou créez le vôtre avec le studio IA.')}</p>` : ''}`;
+    ${!(r.trending || []).length && !(r.city || []).length ? `<p class="ef-muted ef-empty">${t('Le catalogue se charge… Cherchez un titre ou importez le vôtre dans « Mes titres ».')}</p>` : ''}`;
   $$('[data-q]', main).forEach(b => b.onclick = () => quick[+b.dataset.q].go());
   $$('[data-genre]', main).forEach(b => b.onclick = () => efGo('genre', { id: b.dataset.genre }));
   efWire(main);
@@ -416,7 +417,7 @@ async function efGenre(params, tok) {
   if (tok !== EF.tok) return;
   if (!r.ok) { efShell('genre', `${efTop('')}${empty(t('Genre indisponible'), efErr(r))}`); return; }
   efListPage('genre', { title: t(r.genre.label), sub: efN(r.tracks.length), list: r.tracks, key: 'genre', color: r.genre.color, coverIcon: r.genre.id === 'ville' ? 'spark' : 'library',
-    emptyMsg: r.genre.id === 'ville' ? t('Aucune création publiée pour l\'instant. Lancez-vous avec le studio IA !') : t('Catalogue indisponible pour le moment.') });
+    emptyMsg: r.genre.id === 'ville' ? t('Aucun titre publié pour l\'instant. Importez le vôtre dans « Mes titres » !') : t('Catalogue indisponible pour le moment.') });
 }
 async function efLiked(params, tok) {
   efShell('liked', loading());
@@ -472,156 +473,109 @@ async function efLibrary(params, tok) {
     <button class="ef-lrow" data-go="liked"><span class="ef-cover ef-cover--liked">${efIco('heart')}</span><span><b>${t('Titres likés')}</b><small>${`${t('Playlist')} · ${efN(r.liked || 0)}`}</small></span></button>
     <button class="ef-lrow" data-go="downloads"><span class="ef-cover ef-cover--dl">${efIco('down')}</span><span><b>${t('Téléchargements')}</b>
       <small>${d.allowed ? t('{n} / {m} sur ce téléphone', { n: d.count, m: d.max }) : `${efIco('lock')} ${t('ElyAura {n} et plus', { n: d.minTier || 4 })}`}</small></span></button>
-    <button class="ef-lrow" data-go="studio"><span class="ef-cover ef-cover--ai">${efIco('spark')}</span><span><b>${t('Mes créations IA')}</b><small>${t('Studio IA')}</small></span></button>
+    <button class="ef-lrow" data-go="mine"><span class="ef-cover ef-cover--ai">${efIco('upload')}</span><span><b>${t('Mes titres')}</b><small>${t('Ma musique importée')}</small></span></button>
     ${(r.playlists || []).map(p => `<button class="ef-lrow" data-pl="${p.id}">${efArt({ title: p.name, artist: '', thumb: p.thumb }, 56)}<span><b>${esc(p.name)}</b><small>${`${t('Playlist')} · ${efN(p.n)}`}</small></span></button>`).join('')}
     ${!(r.playlists || []).length ? `<button class="ef-newpl" data-newpl2>${efIco('plus')}${t('Créer une playlist')}</button>` : ''}`;
-  $$('[data-go]', main).forEach(b => b.onclick = () => b.dataset.go === 'studio' ? efTab('studio') : efGo(b.dataset.go));
+  $$('[data-go]', main).forEach(b => b.onclick = () => b.dataset.go === 'mine' ? efTab('mine') : efGo(b.dataset.go));
   $$('[data-pl]', main).forEach(b => b.onclick = () => efGo('playlist', { id: +b.dataset.pl }));
   $('[data-newpl2]', main)?.addEventListener('click', () => efNewPlaylist());
 }
 
 /* =========================================================
-   STUDIO IA : paroles + instru → chanson
+   MES TITRES : musique importée (depuis l'ordinateur ou par lien)
    ========================================================= */
-const EF_STATUS = { queued: 'En file d\'attente', processing: 'Composition en cours…', ready_temp: 'Finalisation…', ready: 'Prête', failed: 'Échec' };
-async function efStudio(params, tok) {
-  const ai = EF.init.ai || {};
-  const main = efShell('studio', `<section class="ef-hero"><div class="ef-hero__wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      <h1>${t('Studio IA')}</h1><p>${t('Écrivez vos paroles, choisissez une instru : l\'IA compose et chante votre chanson.')}</p>
-      <button class="btn ef-grad" data-new ${ai.enabled ? '' : 'disabled'}>${efIco('spark')}${t('Nouvelle chanson')}</button>
-      ${ai.enabled ? `<small>${t('{p} $ par chanson · {d} par jour · remboursé en cas d\'échec', { p: (ai.price || 0).toLocaleString(locale()), d: ai.daily })}</small>` : `<small>${t('Le studio IA n\'est pas encore activé sur ce serveur.')}</small>`}
-    </section>
+async function efMine(params, tok) {
+  const imp = EF.init.import || {};
+  const main = efShell('mine', `<section class="ef-hero"><div class="ef-hero__wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h1>${t('Mes titres')}</h1><p>${t('Importe ta propre musique dans ElyFy, puis publie-la pour toute la ville si tu veux.')}</p>
+      <div class="ef-imp">
+        <button class="ef-imp__b" data-pc ${imp.enabled === false ? 'disabled' : ''}>${efIco('pc')}<b>${t('Depuis mon ordinateur')}</b><small>${t('Fichier MP3, M4A…')}</small></button>
+        <button class="ef-imp__b" data-link>${efIco('link')}<b>${t('Avec un lien')}</b><small>${t('Fichier en ligne')}</small></button>
+      </div></section>
     <div class="ef-pad">
       <div class="ef-artist"><span>${efIco('mic')}<b>${t('Nom d\'artiste')}</b></span><button data-artist>${esc(EF.init.artist || '')} ${efIco('edit')}</button></div>
-      <h2 class="ef-h2">${t('Mes créations')}</h2><div id="ef-cr">${loading()}</div>
-      <button class="ef-newpl" data-upload>${efIco('upload')}${t('Publier un titre (lien audio)')}</button></div>`);
-  $('[data-new]', main).onclick = () => efGo('compose');
+      <h2 class="ef-h2">${t('Ma musique')}</h2><div id="ef-cr">${loading()}</div></div>`);
+  $('[data-pc]', main).onclick = () => efImportSheet();
+  $('[data-link]', main).onclick = () => efUploadSheet();
   $('[data-artist]', main).onclick = () => openSheet(t('Nom d\'artiste'), `<input class="field" id="ef-an" maxlength="40" value="${esc(EF.init.artist || '')}"><button class="btn btn--block ef-grad" id="ef-ango" style="margin-top:12px">${t('Enregistrer')}</button>`, (sh) => {
     sh.classList.add('ef-sheet');
-    $('#ef-ango', sh).onclick = async () => { const r = await efApi('efArtist', { name: $('#ef-an', sh).value }); if (!r.ok) return efToast(efErr(r)); EF.init.artist = r.artist; closeSheet(); efStudio(params, EF.tok); };
+    $('#ef-ango', sh).onclick = async () => { const r = await efApi('efArtist', { name: $('#ef-an', sh).value }); if (!r.ok) return efToast(efErr(r)); EF.init.artist = r.artist; closeSheet(); efMine(params, EF.tok); };
   });
-  $('[data-upload]', main).onclick = () => efUploadSheet();
   efLoadCreations(tok);
 }
 async function efLoadCreations(tok) {
   const r = await efApi('efCreations');
   const box = $('#ef-cr'); if (!box || (tok && tok !== EF.tok)) return;
   const list = r.creations || [];
-  const ready = list.filter(c => c.status === 'ready').map(c => ({ key: c.key, title: c.title, artist: c.artist, url: c.url, source: c.kind === 'ai' ? 'ai' : 'city', ai: c.kind === 'ai', lyrics: c.lyrics }));
+  const ready = list.map(c => ({ key: c.key, title: c.title, artist: c.artist, url: c.url, source: 'city', lyrics: c.lyrics }));
   EFL.mine = ready;
-  box.innerHTML = list.length ? list.map(c => {
-    const tr = { key: c.key, title: c.title, artist: c.artist, ai: c.kind === 'ai' };
-    const idx = ready.findIndex(x => x.key === c.key);
-    const style = (EF.init.styles || []).find(s => s.id === c.style);
-    return `<div class="ef-cr ef-cr--${c.status}" data-cid="${c.id}">
-      ${efArt(tr, 54)}
-      <span class="ef-cr__t"><b>${esc(c.title)}</b><small>${style ? esc(style.label) + ' · ' : ''}${c.kind === 'ai' ? t(EF_STATUS[c.status] || '') : t('Titre publié')}${c.status === 'ready' ? ` · ${t('{n} écoutes', { n: c.plays || 0 })}` : ''}</small>
-        ${c.status === 'failed' ? `<small class="ef-cr__err">${esc(c.error || '')}${c.kind === 'ai' ? ' · ' + t('remboursé') : ''}</small>` : ''}
-        ${c.status === 'processing' || c.status === 'queued' || c.status === 'ready_temp' ? '<span class="ef-eq"><i></i><i></i><i></i><i></i></span>' : ''}</span>
-      ${c.status === 'ready' ? `<button class="ef-pill ${c.public ? 'on' : ''}" data-pub="${c.id}" data-on="${c.public ? 1 : 0}">${efIco('globe')}${c.public ? t('Publiée') : t('Publier')}</button>
-        <button class="ef-ib ef-ib--sm" data-crplay="${idx}" aria-label="${t('Lecture')}">${efIco('play')}</button>` : ''}
-      ${c.status === 'ready' || c.status === 'failed' ? `<button class="ef-ib ef-ib--sm" data-crdel="${c.id}" aria-label="${t('Supprimer')}">${efIco('trash')}</button>` : ''}</div>`;
-  }).join('') : `<p class="ef-muted ef-empty">${t('Vos chansons apparaîtront ici. Elles restent privées tant que vous ne les publiez pas.')}</p>`;
+  box.innerHTML = list.length ? list.map((c, idx) => `<div class="ef-cr" data-cid="${c.id}">
+      ${efArt({ key: c.key, title: c.title, artist: c.artist }, 54)}
+      <span class="ef-cr__t"><b>${esc(c.title)}</b><small>${c.public ? t('Publié') : t('Privé')} · ${t('{n} écoutes', { n: c.plays || 0 })}</small></span>
+      <button class="ef-pill ${c.public ? 'on' : ''}" data-pub="${c.id}" data-on="${c.public ? 1 : 0}">${efIco('globe')}${c.public ? t('Publié') : t('Publier')}</button>
+      <button class="ef-ib ef-ib--sm" data-crplay="${idx}" aria-label="${t('Lecture')}">${efIco('play')}</button>
+      <button class="ef-ib ef-ib--sm" data-crdel="${c.id}" aria-label="${t('Supprimer')}">${efIco('trash')}</button></div>`).join('')
+    : `<p class="ef-muted ef-empty">${t('Ta musique importée apparaîtra ici. Elle reste privée tant que tu ne la publies pas.')}</p>`;
   $$('[data-crplay]', box).forEach(b => b.onclick = () => efPlay(ready, +b.dataset.crplay, 'mine'));
   $$('[data-pub]', box).forEach(b => b.onclick = async () => {
     const on = b.dataset.on === '1';
     const x = await efApi('efPublish', { id: +b.dataset.pub, public: !on });
     if (!x.ok) return efToast(efErr(x));
-    efToast(x.public ? t('Publiée dans « Créations de la ville »') : t('Chanson redevenue privée'));
+    efToast(x.public ? t('Publié dans « Créations de la ville »') : t('Titre redevenu privé'));
     efLoadCreations();
   });
-  $$('[data-crdel]', box).forEach(b => b.onclick = () => confirmSheet(t('Supprimer cette chanson ?'), t('Elle disparaîtra d\'ElyFy pour tout le monde.'), t('Supprimer'), async () => { await efApi('efDeleteCreation', { id: +b.dataset.crdel }); efLoadCreations(); }));
-  // Chansons prêtes chez le fournisseur : le téléphone les copie sur l'hébergeur du serveur
-  list.filter(c => c.status === 'ready_temp' && c.temp_url).forEach(c => efRehost(c));
-  if (list.some(c => c.status === 'queued' || c.status === 'processing')) { clearTimeout(EF.crTimer); EF.crTimer = setTimeout(() => { if (S.currentApp === 'elyfy' && $('#ef-cr')) efLoadCreations(); }, 8000); }
+  $$('[data-crdel]', box).forEach(b => b.onclick = () => confirmSheet(t('Supprimer ce titre ?'), t('Il disparaîtra d\'ElyFy pour tout le monde.'), t('Supprimer'), async () => { await efApi('efDeleteCreation', { id: +b.dataset.crdel }); efLoadCreations(); }));
 }
-async function efRehost(c) {
-  if (EF.rehosting[c.id]) return;
-  EF.rehosting[c.id] = true;
-  try {
-    let url;
-    if (IS_BROWSER) url = 'https://r2.fivemanage.com/demo/' + c.id + '.mp3';
-    else {
-      const blob = await (await fetch(c.temp_url)).blob();
-      const link = await api('efUploadUrl');
-      if (!link.ok) throw new Error('lien');
-      const fd = new FormData(); fd.append('file', blob, `elyfy_${c.id}.mp3`);
-      const res = await fetch(link.url, { method: 'POST', body: fd });
-      let b = {}; try { b = await res.json(); } catch (e) { /* vide */ }
-      url = b.url || b.data?.url;
-    }
-    if (!url) throw new Error('hébergeur');
-    const r = await efApi('efAiSaved', { id: c.id, url });
-    if (r.ok) { efToast(t('« {t} » est prête !', { t: c.title })); if ($('#ef-cr')) efLoadCreations(); }
-  } catch (e) { EF.rehosting[c.id] = false; }
-}
-
-// Écriture : titre, paroles (structure), instru, ambiance, voix
-async function efCompose(params, tok) {
-  const ai = EF.init.ai || {};
-  const d = EF.studio = EF.studio || { title: '', lyrics: '', style: '', mood: '', voice: 'm' };
-  const max = ai.lyricsMax || 600;
-  const main = efShell('compose', `${efTop(t('Nouvelle chanson'))}<div class="ef-pad ef-compose">
-    <label class="ef-lbl">${t('Titre')}</label><input class="field" id="ef-ct" maxlength="80" placeholder="${t('ex. Nuits de Vinewood')}" value="${esc(d.title)}">
-    <label class="ef-lbl">${t('Paroles')}</label>
-    <div class="ef-tags">${['Intro', 'Couplet', 'Pré-refrain', 'Refrain', 'Pont', 'Outro'].map(x => `<button data-ins="[${x}]">${t(x)}</button>`).join('')}</div>
-    <textarea class="field" id="ef-cl" rows="8" maxlength="${max}" placeholder="${t('[Couplet]\nJe roule la nuit sur Vinewood…\n[Refrain]\nLos Santos, ma ville…')}">${esc(d.lyrics)}</textarea>
-    <p class="ef-count"><span id="ef-cln">${d.lyrics.length}</span> / ${max}</p>
-    <label class="ef-lbl">${t('Instru')}</label>
-    <div class="ef-styles">${(EF.init.styles || []).map(s => `<button class="ef-style ${d.style === s.id ? 'on' : ''}" data-style="${s.id}" style="--g:${s.color}"><span class="ef-eq"><i></i><i></i><i></i><i></i></span><b>${esc(t(s.label))}</b></button>`).join('')}</div>
-    <label class="ef-lbl">${t('Ambiance')}</label>
-    <div class="ef-chips">${(EF.init.moods || []).map(m => `<button class="${d.mood === m ? 'on' : ''}" data-mood="${esc(m)}">${esc(t(m))}</button>`).join('')}</div>
-    <label class="ef-lbl">${t('Voix')}</label>
-    <div class="ef-seg"><button data-voice="m" class="${d.voice === 'm' ? 'on' : ''}">${t('Masculine')}</button><button data-voice="f" class="${d.voice === 'f' ? 'on' : ''}">${t('Féminine')}</button></div>
-    <p class="error-text" id="ef-cerr"></p>
-    <button class="btn btn--block ef-grad ef-create" id="ef-cgo">${efIco('spark')}${t('Créer ma chanson · {p} $', { p: (ai.price || 0).toLocaleString(locale()) })}</button>
-    <p class="ef-muted ef-small">${t('La création prend une à quelques minutes. Vous serez prévenu quand elle sera prête. En cas d\'échec, vous êtes remboursé.')}</p></div>`);
-  const ly = $('#ef-cl'), ti = $('#ef-ct');
-  ly.oninput = () => { d.lyrics = ly.value; $('#ef-cln').textContent = ly.value.length; };
-  ti.oninput = () => { d.title = ti.value; };
-  $$('[data-ins]', main).forEach(b => b.onclick = () => {
-    const pos = ly.selectionStart ?? ly.value.length;
-    const pre = ly.value.slice(0, pos);
-    const ins = (pre && !pre.endsWith('\n') ? '\n' : '') + b.dataset.ins + '\n';
-    ly.value = pre + ins + ly.value.slice(pos); ly.focus(); ly.selectionStart = ly.selectionEnd = pos + ins.length; ly.oninput();
+// Depuis l'ordinateur : code à usage unique + adresse de la page d'import
+async function efImportSheet() {
+  const r = await efApi('efImportCode');
+  if (!r.ok) return efToast(efErr(r));
+  const end = Date.now() + r.minutes * 60000;
+  const sh = openSheet(t('Depuis mon ordinateur'), `<div class="ef-impsheet">
+      <ol class="ef-steps">
+        <li><b>1</b><span>${t('Sur ton ordinateur, ouvre cette adresse dans ton navigateur :')}<code class="ef-url">${esc(r.url)}</code></span></li>
+        <li><b>2</b><span>${t('Tape ce code :')}</span></li>
+      </ol>
+      <div class="ef-code">${esc(r.code.slice(0, 3))}<i></i>${esc(r.code.slice(3))}</div>
+      <p class="ef-muted ef-small ef-center" id="ef-exp"></p>
+      <ol class="ef-steps" start="3"><li><b>3</b><span>${t('Choisis ton fichier audio ({m} Mo max) : il arrive ici tout seul.', { m: r.maxMb })}</span></li></ol>
+      <div class="ef-wait"><span class="ef-eq"><i></i><i></i><i></i><i></i></span>${t('En attente de ton fichier…')}</div>
+      <button class="btn btn--block ef-btn2" data-new>${t('Nouveau code')}</button></div>`, (s) => {
+    s.classList.add('ef-sheet');
+    $('[data-new]', s).onclick = () => { closeSheet(true); efImportSheet(); };
   });
-  $$('[data-style]', main).forEach(b => b.onclick = () => { d.style = b.dataset.style; $$('[data-style]', main).forEach(x => x.classList.toggle('on', x === b)); });
-  $$('[data-mood]', main).forEach(b => b.onclick = () => { d.mood = d.mood === b.dataset.mood ? '' : b.dataset.mood; $$('[data-mood]', main).forEach(x => x.classList.toggle('on', x.dataset.mood === d.mood)); });
-  $$('[data-voice]', main).forEach(b => b.onclick = () => { d.voice = b.dataset.voice; $$('[data-voice]', main).forEach(x => x.classList.toggle('on', x === b)); });
-  $('#ef-cgo').onclick = async () => {
-    if (!d.title.trim()) { $('#ef-cerr').textContent = t('Donnez un titre à votre chanson.'); return; }
-    if (d.lyrics.trim().length < 20) { $('#ef-cerr').textContent = t('Écrivez au moins quelques lignes de paroles.'); return; }
-    if (!d.style) { $('#ef-cerr').textContent = t('Choisissez une instru.'); return; }
-    const b = $('#ef-cgo'); b.disabled = true;
-    const r = await efApi('efAiCreate', { title: d.title, lyrics: d.lyrics, style: d.style, mood: d.mood || undefined, voice: d.voice });
-    b.disabled = false;
-    if (!r.ok) { $('#ef-cerr').textContent = efErr(r); return; }
-    EF.studio = null;
-    efToast(t('Chanson en cours de création…'));
-    efTab('studio');
+  const tick = () => {
+    const el = $('#ef-exp', sh);
+    if (!el || !document.body.contains(sh)) return clearInterval(timer);
+    const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+    el.textContent = left > 0 ? t('Code valable encore {m} min {s} s', { m: Math.floor(left / 60), s: pad(left % 60) }) : t('Code expiré : demande un nouveau code.');
   };
+  const timer = setInterval(tick, 1000); tick();
+  EF.importSheet = sh;
 }
 function efUploadSheet() {
-  openSheet(t('Publier un titre'), `<p class="ef-muted ef-small">${t('Artistes de la ville : collez le lien de votre fichier audio (Fivemanage…).')}</p>
+  openSheet(t('Ajouter avec un lien'), `<p class="ef-muted ef-small">${t('Colle le lien d\'un fichier audio déjà en ligne (Fivemanage, Discord…).')}</p>
     <label class="ef-lbl">${t('Titre')}</label><input class="field" id="ef-ut" maxlength="80">
     <label class="ef-lbl">${t('Lien audio')}</label><input class="field" id="ef-uu" placeholder="https://…">
     <label class="ef-lbl">${t('Paroles (facultatif)')}</label><textarea class="field" id="ef-ul" rows="3"></textarea>
-    <p class="error-text" id="ef-uerr"></p><button class="btn btn--block ef-grad" id="ef-ugo">${t('Publier')}</button>`, (sh) => {
+    <label class="ef-chk"><input type="checkbox" id="ef-up"> ${t('Publier pour toute la ville')}</label>
+    <p class="error-text" id="ef-uerr"></p><button class="btn btn--block ef-grad" id="ef-ugo">${t('Ajouter')}</button>`, (sh) => {
     sh.classList.add('ef-sheet');
     $('#ef-ugo', sh).onclick = async () => {
-      const r = await efApi('efUpload', { title: $('#ef-ut', sh).value, url: $('#ef-uu', sh).value, lyrics: $('#ef-ul', sh).value });
+      const r = await efApi('efUpload', { title: $('#ef-ut', sh).value, url: $('#ef-uu', sh).value, lyrics: $('#ef-ul', sh).value, public: $('#ef-up', sh).checked });
       if (!r.ok) { $('#ef-uerr', sh).textContent = efErr(r); return; }
-      closeSheet(); efToast(t('Titre publié dans « Créations de la ville »')); efLoadCreations();
+      closeSheet(); efToast(t('Titre ajouté à « Mes titres »')); efLoadCreations();
     };
   });
 }
 
-const EF_PAGES = { home: efHome, search: efSearch, library: efLibrary, studio: efStudio, compose: efCompose, genre: efGenre, liked: efLiked, downloads: efDownloads, playlist: efPlaylistPage };
+const EF_PAGES = { home: efHome, search: efSearch, library: efLibrary, mine: efMine, studio: efMine, genre: efGenre, liked: efLiked, downloads: efDownloads, playlist: efPlaylistPage };
 
 /* ---------- Événements en direct (serveur → téléphone) ---------- */
 function efPush(d) {
-  if (d.type === 'ai') {
-    if (d.status === 'ready_temp') efApi('efCreations').then(r => (r.creations || []).filter(c => c.id === d.id && c.status === 'ready_temp').forEach(c => efRehost(c)));
+  if (d.type === 'imported') {
+    if (EF.importSheet && document.body.contains(EF.importSheet)) closeSheet();
+    EF.importSheet = null;
     if (S.currentApp === 'elyfy' && $('#ef-cr')) efLoadCreations();
   }
 }
@@ -640,22 +594,20 @@ const EFMock = (() => {
   };
   const T = (key, title, artist, source, extra = {}) => Object.assign({ key, title, artist, source, url: tone([0, 4, 7, 12, 7, 4, 0, -5]) }, extra);
   const trend = [T('audius:1', 'Vinewood Nights', 'Lofi LS', 'audius'), T('audius:2', 'Grove Street Anthem', 'MC Grove', 'audius'), T('audius:3', 'Del Perro Sunset', 'Beach Club', 'audius'), T('audius:4', 'Maze Bank Rooftop', 'DJ Skyline', 'audius')];
-  const city = [T('ef:1', 'Ma ville la nuit', 'MC Malik', 'ai', { ai: true, lyrics: '[Couplet]\nJe roule la nuit sur Vinewood\nLes lumières de la ville\n[Refrain]\nLos Santos, ma ville, mon histoire', plays: 342 }),
+  const city = [T('ef:1', 'Ma ville la nuit', 'MC Malik', 'city', { lyrics: '[Couplet]\nJe roule la nuit sur Vinewood\nLes lumières de la ville\n[Refrain]\nLos Santos, ma ville, mon histoire', plays: 342 }),
     T('ef:2', 'Los Santos Flow', 'Inès M', 'city', { plays: 120 })];
   const all = [...trend, ...city];
   const states = { 'audius:1': { liked: true, downloaded: true } };
   const pls = [{ id: 1, name: 'Route de nuit', items: ['audius:2', 'ef:1'] }];
-  let crs = [{ id: 1, kind: 'ai', key: 'ef:1', title: 'Ma ville la nuit', artist: 'Léna D.', url: city[0].url, lyrics: city[0].lyrics, style: 'trap', status: 'ready', public: true, plays: 342 },
-    { id: 2, kind: 'ai', key: 'ef:5', title: 'Pluie sur Paleto', artist: 'Léna D.', style: 'lofi', status: 'processing' },
-    { id: 3, kind: 'ai', key: 'ef:6', title: 'Essai', artist: 'Léna D.', style: 'pop', status: 'failed', error: 'L\'IA n\'a pas pu créer la chanson' }];
-  let artist = 'Léna D.', plid = 1, crid = 3;
+  let crs = [{ id: 1, kind: 'upload', key: 'ef:1', title: 'Ma ville la nuit', artist: 'Léna D.', url: city[0].url, lyrics: city[0].lyrics, status: 'ready', public: true, plays: 342 },
+    { id: 2, kind: 'upload', key: 'ef:5', title: 'Démo studio', artist: 'Léna D.', url: city[1].url, status: 'ready', public: false, plays: 3 }];
+  let artist = 'Léna D.', plid = 1, crid = 2;
   const dl = () => ({ allowed: true, tier: 4, minTier: 4, max: 100, count: Object.values(states).filter(s => s.downloaded).length });
   const find = (k) => all.find(x => x.key === k);
   const H = {
-    efInit: () => ({ ok: true, artist, downloads: dl(), youtube: true, ai: { enabled: true, price: 2500, daily: 3, lyricsMax: 600 },
+    efInit: () => ({ ok: true, artist, downloads: dl(), youtube: true, import: { enabled: true, maxMb: 15 },
       genres: [['rap', 'Rap', '#9B5CFF'], ['pop', 'Pop', '#FF6FB5'], ['electro', 'Électro', '#2EE6F0'], ['rnb', 'R&B', '#C9A6FF'], ['lofi', 'Lo-fi', '#6FE7F2'], ['rock', 'Rock', '#E8590C'], ['afro', 'Afro', '#3EE6B0'], ['ville', 'Créations de la ville', '#FF2D7A']].map(([id, label, color]) => ({ id, label, color })),
-      styles: [['trap', 'Trap', '#9B5CFF'], ['drill', 'Drill', '#FF2D55'], ['afro', 'Afro', '#3EE6B0'], ['pop', 'Pop', '#FF6FB5'], ['rnb', 'R&B', '#C9A6FF'], ['lofi', 'Lo-fi', '#6FE7F2']].map(([id, label, color]) => ({ id, label, color })),
-      moods: ['Énergique', 'Mélancolique', 'Chill', 'Sombre', 'Joyeux', 'Romantique'] }),
+    }),
     efStates: () => ({ ok: true, states }),
     efHome: () => ({ ok: true, recent: [trend[1], city[0]], trending: trend, city, fresh: city.slice().reverse(), catalog: [], playlists: pls.map(p => ({ id: p.id, name: p.name, n: p.items.length })), mixes: [['rap', 'Rap', '#9B5CFF'], ['pop', 'Pop', '#FF6FB5'], ['lofi', 'Lo-fi', '#6FE7F2']].map(([id, label, color]) => ({ id, label, color })) }),
     efGenre: (a) => ({ ok: true, genre: { id: a.id, label: a.id === 'ville' ? 'Créations de la ville' : 'Rap', color: '#9B5CFF' }, tracks: a.id === 'ville' ? city : trend }),
@@ -675,11 +627,12 @@ const EFMock = (() => {
     efPlaylistDelete: (a) => { pls.splice(pls.findIndex(x => x.id === a.id), 1); return { ok: true }; },
     efArtist: (a) => { artist = a.name; return { ok: true, artist }; },
     efCreations: () => ({ ok: true, creations: crs.map(c => Object.assign({}, c)) }),
-    efAiCreate: (a) => { crs.unshift({ id: ++crid, kind: 'ai', key: 'ef:' + (crid + 10), title: a.title, artist, style: a.style, status: 'queued', lyrics: a.lyrics }); return { ok: true, id: crid }; },
     efPublish: (a) => { const c = crs.find(x => x.id === a.id); c.public = a.public !== false; return { ok: true, public: c.public }; },
     efDeleteCreation: (a) => { crs = crs.filter(x => x.id !== a.id); return { ok: true }; },
-    efAiSaved: () => ({ ok: true }),
-    efUpload: (a) => a.url.startsWith('https://') ? { ok: true, id: 99 } : { ok: false, error: 'Lien refusé' },
+    efImportCode: () => ({ ok: true, code: 'K7P2QD', url: 'https://monserveur-abc123.users.cfx.re/elyzea_aura/import', minutes: 15, maxMb: 15 }),
+    efUpload: (a) => { if (!a.url.startsWith('https://')) return { ok: false, error: 'Lien refusé' }; crs.unshift({ id: ++crid, kind: 'upload', key: 'ef:' + (crid + 10), title: a.title, artist, url: city[1].url, status: 'ready', public: !!a.public, plays: 0 }); return { ok: true, id: crid }; },
+    // aperçu : simule un fichier envoyé depuis l'ordinateur
+    __imported: (a) => { crs.unshift({ id: ++crid, kind: 'upload', key: 'ef:' + (crid + 10), title: a.title, artist, url: city[1].url, status: 'ready', public: false, plays: 0 }); return { ok: true }; },
   };
   return { call: async (n, a) => (H[n] || (() => ({ ok: false, error: 'inconnu' })))(a || {}) };
 })();

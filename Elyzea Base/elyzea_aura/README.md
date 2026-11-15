@@ -40,7 +40,7 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Nécessite `elyzea_jobphone` (sinon : « Annuaire des entreprises indisponible »).
 
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), **ElyFy** (musique + studio IA), Itoune, **ElyChat**, **ElyMeet** (ex-Étincelle), Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), **ElyFy** (musique + import de ta propre musique), Itoune, **ElyChat**, **ElyMeet** (ex-Étincelle), Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua
@@ -95,7 +95,7 @@ On ne voit, et on ne peut envoyer sa fiche qu'aux personnes proches qui ont leur
 - `python3 tests/run_identity_sim.py <socket MariaDB>` : vrais fichiers serveur, vraie base ; 38 vérifications.
 - `NODE_PATH=$(npm root -g) node tests/ui_identite.cjs` : téléphone dans Chromium ; 18 vérifications.
 
-## ElyFy : streaming musical + studio IA
+## ElyFy : streaming musical + import de musique
 Directement dans le téléphone (tables `elyzea_ef_*` créées au démarrage). Réglages : `config_elyfy.lua`.
 - **Catalogue** : **Audius** (musique libre et légale, titres complets, aucune clé), **YouTube** (recherche de n'importe quel titre avec une clé
   YouTube Data v3 : `Config.ElyFy.YouTubeApiKey`, ou celle d'Itoune), titres du serveur (`Config.ElyFy.Catalog`), créations de la ville.
@@ -104,15 +104,14 @@ Directement dans le téléphone (tables `elyzea_ef_*` créées au démarrage). R
   (titres likés, téléchargements, playlists), lecteur plein écran (aléatoire, répéter, file d'attente, paroles, haut-parleur) et mini-lecteur.
 - **Téléchargements : à partir de l'ElyAura 4**. Le titre est enregistré dans le téléphone (onglet Téléchargements), avec une place
   limitée selon le modèle (100 / 300 / 1 000). Ce n'est pas une copie de fichier MP3 : la lecture passe toujours par la source du titre.
-- **Studio IA** (comme Suno) : titre, paroles avec structure ([Couplet], [Refrain], [Pont]…), instru (12 styles), ambiance, voix.
-  L'IA compose et chante la chanson ; elle reste privée jusqu'à ce que le joueur la publie dans « Créations de la ville ».
-  - Fournisseur : **Replicate** (modèle `minimax/music-1.5`, payant à l'usage sur replicate.com). Mets ton jeton dans `server.cfg` :
-    `set elyfy_replicate_token "r8_..."` (jamais écrasé par une mise à jour), ou dans `Config.ElyFy.AI.Token`. Sans jeton : studio désactivé,
-    et la console serveur l'indique au démarrage. Un refus de Replicate (jeton invalide, plus de crédit) est écrit dans la console.
-    Le jeton reste sur le serveur. Prix, quotas par joueur et par serveur, remboursement automatique en cas d'échec.
-  - Le fichier du fournisseur expire au bout d'environ 1 h : **le serveur** le copie sur ton hébergeur (Fivemanage, clé de `Config.Camera.Headers`).
-    Si ça échoue, le téléphone du créateur essaie à son tour ; sinon la création échoue et elle est remboursée.
-- **Artistes de la ville** : un joueur peut publier son propre titre (lien audio Fivemanage…) sous son nom d'artiste.
+- **Mes titres** : chaque joueur importe sa propre musique, privée par défaut, publiable dans « Créations de la ville ».
+  - **Depuis l'ordinateur** : le téléphone affiche un **code à 6 caractères** (valable 15 min) et l'adresse d'une page web servie par
+    ton serveur (`https://<ton-serveur>.users.cfx.re/elyzea_aura/import`). Le joueur l'ouvre dans le navigateur de son PC, tape le code,
+    choisit son fichier (MP3, M4A, OGG, WAV, 15 Mo max) : le fichier part directement sur Fivemanage (lien d'envoi à usage unique,
+    la clé reste sur le serveur) et le titre arrive aussitôt dans son téléphone. 8 codes faux d'une même adresse = blocage 10 min.
+  - **Avec un lien** : coller le lien d'un fichier audio déjà en ligne (hébergeurs de `Config.ElyFy.UploadHosts`).
+  - Adresse de la page : automatique si ton serveur est sur la liste FiveM (adresse cfx.re). Sinon, renseigne
+    `Config.ElyFy.Import.Url` dans `config_elyfy.lua` (ex. `'http://123.45.67.89:30120'`). La console l'indique au démarrage.
 - La musique d'ElyFy utilise le lecteur du téléphone (comme Itoune) : haut-parleur pour les joueurs proches, île dynamique.
 
 ## ElyChat : messagerie photo (comme Snapchat)

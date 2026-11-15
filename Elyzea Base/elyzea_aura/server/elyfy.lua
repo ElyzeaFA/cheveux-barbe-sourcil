@@ -1,20 +1,17 @@
 -- =========================================================
 --  ELYFY : streaming musical du téléphone (comme Spotify, aux couleurs d'Elyzea)
 --  · Catalogue : Audius (musique libre, titres complets, sans clé), YouTube (si clé), titres du serveur,
---    titres de la ville (artistes et studio IA).
+--    titres de la ville (musique importée par les joueurs).
 --  · Bibliothèque : titres likés, playlists, écoutés récemment, téléchargements (ElyAura 4 et plus).
---  · Studio IA : paroles + instru → chanson générée par l'IA (Replicate, modèle MiniMax Music).
+--  · Mes titres : musique importée depuis l'ordinateur (page web + code à usage unique) ou par lien.
 --  Sécurité : le téléphone n'envoie que des clés de titres ; le serveur retrouve lui-même le titre
---  (jamais un lien libre), vérifie l'appareil, les quotas, l'argent. Le jeton IA reste sur le serveur.
+--  (jamais un lien libre), vérifie l'appareil et les quotas. La clé de l'hébergeur reste sur le serveur.
 -- =========================================================
 local A = AuraCore
 if A.AddRepair then A.AddRepair('^ef%u', 'sql/elyfy.sql', 'elyzea_ef_', 'ElyFy') end
 local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players, A.trim, A.HasApp
 local CFG = Config.ElyFy or {}
-local AI = CFG.AI or {}
 local APP = 'elyfy'
--- Jeton Replicate : config_elyfy.lua OU server.cfg (set elyfy_replicate_token "r8_...") — le server.cfg n'est jamais écrasé par une mise à jour
-if (AI.Token or '') == '' then AI.Token = GetConvar('elyfy_replicate_token', '') end
 
 -- ---------------------------------------------------------
 --  Base de données
@@ -34,12 +31,9 @@ CreateThread(function()
     -- même collation que les autres tables (sinon les jointures échouent : « Illegal mix of collations »)
     pcall(function() exports.elyzea_core:AlignCollations() end)
     Ready = true
-    print(('^2[elyzea_aura] ElyFy prêt (Audius %s, YouTube %s, studio IA %s).^0'):format(
+    print(('^2[elyzea_aura] ElyFy prêt (Audius %s, YouTube %s, import depuis l\'ordinateur %s).^0'):format(
         (CFG.Audius or {}).Enabled ~= false and 'oui' or 'non', (((CFG.YouTubeApiKey or '') ~= '' or ((Config.Itoune or {}).YouTubeApiKey or '') ~= '') and 'oui' or 'non'),
-        (AI.Enabled ~= false and (AI.Token or '') ~= '') and 'oui' or 'non configuré'))
-    if AI.Enabled ~= false and (AI.Token or '') == '' then
-        print('^3[elyzea_aura] ElyFy : studio IA désactivé, aucun jeton Replicate. Ajoute dans server.cfg : set elyfy_replicate_token "r8_..." (replicate.com > API tokens).^0')
-    end
+        ((CFG.Import or {}).Enabled == false and 'non') or (((CFG.Import or {}).Url or '') ~= '' or (GetConvar('web_baseUrl', '') or '') ~= '') and 'oui' or 'adresse à renseigner (Config.ElyFy.Import.Url)'))
 end)
 
 -- ---------------------------------------------------------
@@ -280,13 +274,10 @@ end
 
 EF_('efInit', function(src, me)
     local artist = MySQL.scalar.await('SELECT artist FROM elyzea_ef_profiles WHERE identifier = ?', { me.identifier }) or A.GetCharName(src)
-    local styles = {}
-    for _, s in ipairs(CFG.Styles or {}) do styles[#styles + 1] = { id = s.id, label = s.label, color = s.color } end
     local genres = {}
     for _, g in ipairs(GENRES) do genres[#genres + 1] = { id = g.id, label = g.label, color = g.color } end
-    return { ok = true, artist = artist, downloads = Downloads(src, me), genres = genres, styles = styles, moods = CFG.Moods or {},
-        ai = { enabled = AI.Enabled ~= false and (AI.Token or '') ~= '', price = int(AI.Price, 0), daily = int(AI.DailyPerPlayer, 3), lyricsMax = int(AI.LyricsMax, 600) },
-        youtube = YtKey() ~= '' }
+    return { ok = true, artist = artist, downloads = Downloads(src, me), genres = genres, youtube = YtKey() ~= '',
+        import = { enabled = (CFG.Import or {}).Enabled ~= false, maxMb = int((CFG.Import or {}).MaxMB, 15) } }
 end)
 
 EF_('efHome', function(src, me)
@@ -527,158 +518,23 @@ EF_('efUpload', function(src, me, args)
     if title == '' then return { ok = false, error = 'Donne un titre' } end
     local lyrics = trim((tostring(args.lyrics or ''):gsub('\r', '')), 3000)
     local id = MySQL.insert.await([[INSERT INTO elyzea_ef_tracks (owner, kind, artist, title, url, lyrics, status, public, ready_at)
-        VALUES (?, 'upload', ?, ?, ?, ?, 'ready', 1, NOW())]], { me.identifier, ArtistName(src, me), title, url, lyrics ~= '' and lyrics or nil })
+        VALUES (?, 'upload', ?, ?, ?, ?, 'ready', ?, NOW())]], { me.identifier, ArtistName(src, me), title, url, lyrics ~= '' and lyrics or nil, args.public == true and 1 or 0 })
     return { ok = true, id = id }
 end)
 
 -- ---------------------------------------------------------
---  Studio IA : paroles + instru → chanson (Replicate)
+--  Mes titres : musique importée par les joueurs (depuis l'ordinateur ou par lien)
+--  privée par défaut, publiable dans « Créations de la ville »
 -- ---------------------------------------------------------
-local MOOD_EN = { ['Énergique'] = 'energetic', ['Mélancolique'] = 'melancholic', ['Chill'] = 'chill, relaxed', ['Sombre'] = 'dark, moody',
-    ['Joyeux'] = 'happy, bright', ['Romantique'] = 'romantic', ['Motivant'] = 'uplifting, motivational', ['Festif'] = 'party, festive' }
-local TAGS = { couplet = 'Verse', refrain = 'Chorus', pont = 'Bridge', intro = 'Intro', outro = 'Outro', ['pré%-refrain'] = 'Pre-Chorus' }
-local function StyleOf(id) for _, s in ipairs(CFG.Styles or {}) do if s.id == id then return s end end end
--- Paroles : balises françaises [Couplet] [Refrain] [Pont]… traduites pour le modèle
-local function LyricsForModel(l)
-    return (l:gsub('%[([^%]]+)%]', function(tag)
-        local low = tag:lower()
-        for fr, en in pairs(TAGS) do if low:match('^' .. fr) then return '[' .. en .. ']' end end
-        return '[' .. tag .. ']'
-    end))
-end
-local function PromptFor(style, mood, voice)
-    local s = StyleOf(style)
-    local parts = { s and s.prompt or 'modern song' }
-    if MOOD_EN[mood] then parts[#parts + 1] = MOOD_EN[mood] .. ' mood' end
-    parts[#parts + 1] = voice == 'f' and 'female vocals' or 'male vocals'
-    parts[#parts + 1] = 'French lyrics, clear vocals, professional mix'
-    return table.concat(parts, ', '):sub(1, 300)
-end
-
-local function AiOn() return AI.Enabled ~= false and (AI.Token or '') ~= '' end
-local function Headers() return { ['Authorization'] = 'Bearer ' .. AI.Token, ['Content-Type'] = 'application/json' } end
-local function ProviderCreate(input)
-    local model = AI.Model or 'minimax/music-1.5'
-    local url, body
-    local owner, name, version = model:match('^([%w_%-%.]+)/([%w_%-%.]+):?([%w]*)$')
-    if version and version ~= '' then url, body = 'https://api.replicate.com/v1/predictions', { version = version, input = input }
-    else url, body = ('https://api.replicate.com/v1/models/%s/%s/predictions'):format(owner or 'minimax', name or 'music-1.5'), { input = input } end
-    local code, d = JsonReq('POST', url, json.encode(body), Headers())
-    if (code == 200 or code == 201) and d and d.id then return d.id end
-    return nil, d and (d.detail or d.title or d.error) or ('code ' .. tostring(code))
-end
-local function OutputUrl(out)
-    if type(out) == 'string' then return out end
-    if type(out) == 'table' then
-        for _, k in ipairs({ 'audio', 'url', 'output', 'song' }) do if type(out[k]) == 'string' then return out[k] end end
-        for _, v in ipairs(out) do if type(v) == 'string' then return v end end
-    end
-end
-local function ProviderGet(id)
-    local code, d = JsonReq('GET', 'https://api.replicate.com/v1/predictions/' .. UrlEncode(id), '', Headers())
-    if code ~= 200 or not d then return 'processing' end
-    if d.status == 'succeeded' then return 'succeeded', OutputUrl(d.output) end
-    if d.status == 'failed' or d.status == 'canceled' then return 'failed', nil, tostring(d.error or d.status):sub(1, 180) end
-    return 'processing'
-end
-
--- Copie du fichier du fournisseur sur l'hébergeur du serveur (Fivemanage), faite PAR LE SERVEUR :
--- le navigateur du téléphone peut être bloqué en téléchargeant le fichier (CORS). Même envoi que l'appareil photo.
-local function ServerRehost(id, srcUrl)
-    local r = Http('GET', srcUrl, '', {})
-    if r.code ~= 200 or type(r.body) ~= 'string' or #r.body < 1000 then
-        print(('^3[elyzea_aura] ElyFy : fichier de l\'IA non téléchargé (code %s), le téléphone du créateur va essayer^0'):format(tostring(r.code)))
-        return nil
-    end
-    local cam = Config.Camera or {}
-    local presigned = cam.PresignedUrl or 'https://api.fivemanage.com/api/presigned-url?fileType=%s'
-    local l = Http('GET', presigned:format('audio'), '', cam.Headers or {})
-    local ok, d = pcall(json.decode, l.body or '')
-    local target = ok and type(d) == 'table' and (d.presignedUrl or (d.data and d.data.presignedUrl))
-    if not target then
-        print(('^3[elyzea_aura] ElyFy : l\'hébergeur n\'a pas donné de lien d\'envoi (code %s). Vérifie la clé Fivemanage (Config.Camera.Headers).^0'):format(tostring(l.code)))
-        return nil
-    end
-    local boundary = ('----ElyFy%d'):format(math.random(100000, 999999))
-    local body = ('--%s\r\nContent-Disposition: form-data; name="file"; filename="elyfy_%d.mp3"\r\nContent-Type: audio/mpeg\r\n\r\n'):format(boundary, id)
-        .. r.body .. ('\r\n--%s--\r\n'):format(boundary)
-    local u = Http('POST', target, body, { ['Content-Type'] = 'multipart/form-data; boundary=' .. boundary })
-    local ok2, res = pcall(json.decode, u.body or '')
-    local url = ok2 and type(res) == 'table' and (res.url or (res.data and res.data.url))
-    if type(url) ~= 'string' or not url:match('^https://') then
-        print(('^3[elyzea_aura] ElyFy : envoi sur l\'hébergeur refusé (code %s) : %s^0'):format(tostring(u.code), tostring(u.body):sub(1, 200)))
-        return nil
-    end
-    return url:sub(1, 500)
-end
-
-local function Refund(row, why)
-    MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'failed', error = ?, temp_url = NULL WHERE id = ? AND status <> 'failed'", { why, row.id })
-    local price = tonumber(row.price) or 0
-    local s = SourceOf(row.owner)
-    if price > 0 then
-        if s then A.AddBank(s, price, 'elyfy-remboursement') else A.AddBankOffline(row.owner, price) end
-    end
-    if s and Players[s] then
-        Notify(s, { app = APP, key = 'efFailed', params = { title = row.title } })
-        Push(s, { type = 'ai', id = row.id, status = 'failed' })
-    end
-end
-
-EF_('efAiCreate', function(src, me, args)
-    if not AiOn() then return { ok = false, error = 'Le studio IA n\'est pas encore activé sur ce serveur' } end
-    if TooFast(src, 'ai', 5000) then return { ok = false, error = 'Attends quelques secondes' } end
-    local title = trim(args.title, 80)
-    if title == '' then return { ok = false, error = 'Donne un titre à ta chanson' } end
-    local lyrics = trim((tostring(args.lyrics or ''):gsub('\r', '')), int(AI.LyricsMax, 600))
-    if #lyrics < 20 then return { ok = false, error = 'Écris au moins quelques lignes de paroles' } end
-    local style = StyleOf(args.style)
-    if not style then return { ok = false, error = 'Choisis une instru' } end
-    local mood = MOOD_EN[args.mood] and args.mood or nil
-    local voice = args.voice == 'f' and 'f' or 'm'
-    local mine = MySQL.scalar.await("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE owner = ? AND kind = 'ai' AND status <> 'failed' AND created_at >= CURDATE()", { me.identifier }) or 0
-    if mine >= int(AI.DailyPerPlayer, 3) then return { ok = false, error = ('Limite atteinte : %d créations par jour'):format(int(AI.DailyPerPlayer, 3)) } end
-    local all = MySQL.scalar.await("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE kind = 'ai' AND status <> 'failed' AND created_at >= CURDATE()") or 0
-    if all >= int(AI.DailyServer, 60) then return { ok = false, error = 'Le studio est complet pour aujourd\'hui, reviens demain' } end
-    local price = int(AI.Price, 0)
-    if price > 0 and not A.RemoveBank(src, price, 'elyfy-studio') then return { ok = false, error = ('Solde insuffisant (%d $ en banque)'):format(price) } end
-    local id = MySQL.insert.await([[INSERT INTO elyzea_ef_tracks (owner, kind, artist, title, lyrics, style, mood, voice, status, price)
-        VALUES (?, 'ai', ?, ?, ?, ?, ?, ?, 'queued', ?)]], { me.identifier, ArtistName(src, me), title, lyrics, style.id, mood, voice, price })
-    return { ok = true, id = id }
-end)
-
--- Mes créations (et titres publiés)
 EF_('efCreations', function(src, me)
-    local rows = MySQL.query.await([[SELECT id, kind, artist, title, url, temp_url, lyrics, style, mood, voice, status, error, public, plays, likes,
-        UNIX_TIMESTAMP(created_at) AS ts FROM elyzea_ef_tracks WHERE owner = ? ORDER BY id DESC LIMIT 60]], { me.identifier }) or {}
+    local rows = MySQL.query.await([[SELECT id, kind, artist, title, url, lyrics, style, status, public, plays, likes,
+        UNIX_TIMESTAMP(created_at) AS ts FROM elyzea_ef_tracks WHERE owner = ? AND status = 'ready' ORDER BY id DESC LIMIT 100]], { me.identifier }) or {}
     for _, r in ipairs(rows) do
         r.public = bool(r.public)
         r.key = 'ef:' .. r.id
-        if r.status == 'ready' then CityTrack({ id = r.id, owner = me.identifier, kind = r.kind, artist = r.artist, title = r.title, url = r.url, lyrics = r.lyrics, style = r.style, plays = r.plays, likes = r.likes }) end
+        CityTrack({ id = r.id, owner = me.identifier, kind = r.kind, artist = r.artist, title = r.title, url = r.url, lyrics = r.lyrics, style = r.style, plays = r.plays, likes = r.likes })
     end
     return { ok = true, creations = rows }
-end)
-
--- Le téléphone a copié le fichier du fournisseur sur l'hébergeur du serveur : la chanson est sauvegardée
-EF_('efAiSaved', function(src, me, args)
-    local id = int(args.id, 0)
-    local row = MySQL.single.await("SELECT id, title FROM elyzea_ef_tracks WHERE id = ? AND owner = ? AND status = 'ready_temp'", { id, me.identifier })
-    if not row then return { ok = false } end
-    local url = trim(args.url, 500)
-    if not HostAllowed(url, CFG.UploadHosts or {}) then return { ok = false, error = 'Hébergeur refusé' } end
-    MySQL.update.await("UPDATE elyzea_ef_tracks SET url = ?, temp_url = NULL, status = 'ready', ready_at = NOW() WHERE id = ?", { url, id })
-    return { ok = true }
-end)
-
--- Lien d'envoi à usage unique pour le fichier audio (même hébergeur que l'appareil photo)
-EF_('efUploadUrl', function(src, me)
-    local cam = Config.Camera or {}
-    local presigned = cam.PresignedUrl or 'https://api.fivemanage.com/api/presigned-url?fileType=%s'
-    local r = Http('GET', presigned:format('audio'), '', cam.Headers or {})
-    local ok, d = pcall(json.decode, r.body or '')
-    local url = ok and type(d) == 'table' and (d.presignedUrl or (d.data and d.data.presignedUrl))
-    if not url then return { ok = false, error = 'L\'hébergeur a refusé le fichier' } end
-    return { ok = true, url = url }
 end)
 
 EF_('efPublish', function(src, me, args)
@@ -690,61 +546,125 @@ end)
 
 EF_('efDeleteCreation', function(src, me, args)
     local id = int(args.id, 0)
-    local n = MySQL.update.await("DELETE FROM elyzea_ef_tracks WHERE id = ? AND owner = ? AND status IN ('ready', 'failed', 'ready_temp')", { id, me.identifier })
-    if (n or 0) < 1 then return { ok = false, error = 'Impossible pendant la création' } end
+    local n = MySQL.update.await("DELETE FROM elyzea_ef_tracks WHERE id = ? AND owner = ?", { id, me.identifier })
+    if (n or 0) < 1 then return { ok = false, error = 'Titre introuvable' } end
     MySQL.update.await('DELETE FROM elyzea_ef_track_likes WHERE track_id = ?', { id })
     return { ok = true }
 end)
 
--- File d'attente : envoi au fournisseur, suivi, fin (copie par le téléphone du créateur), échecs remboursés
-local function AiTick()
-    if not Ready or not AiOn() then return end
-    local timeout = int(AI.TimeoutMinutes, 15)
-    -- 1. suivi des créations en cours
-    for _, r in ipairs(MySQL.query.await("SELECT id, owner, title, price, provider_id, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age FROM elyzea_ef_tracks WHERE status = 'processing' LIMIT 20") or {}) do
-        local st, out, err = ProviderGet(r.provider_id)
-        if st == 'succeeded' and out and out:match('^https://') then
-            local saved = ServerRehost(r.id, out)
-            if saved then
-                MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'ready', url = ?, temp_url = NULL, ready_at = NOW() WHERE id = ?", { saved, r.id })
-            else
-                MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'ready_temp', temp_url = ?, ready_at = NOW() WHERE id = ?", { out:sub(1, 500), r.id })
-            end
-            local s = SourceOf(r.owner)
-            if s and Players[s] then
-                Notify(s, { app = APP, key = 'efReady', params = { title = r.title } })
-                Push(s, { type = 'ai', id = r.id, status = saved and 'ready' or 'ready_temp' })
-            end
-        elseif st == 'failed' or (st == 'succeeded' and not out) then Refund(r, 'L\'IA n\'a pas pu créer la chanson' .. (err and (' : ' .. err) or ''))
-        elseif (tonumber(r.age) or 0) > timeout then Refund(r, 'Temps dépassé') end
+-- ---------------------------------------------------------
+--  Import depuis l'ordinateur
+--  Le téléphone donne un CODE à usage unique (15 min) et l'adresse d'une page web servie par ce serveur.
+--  Sur cette page (navigateur de l'ordinateur), le joueur choisit son fichier : il part directement sur
+--  l'hébergeur (Fivemanage, lien d'envoi à usage unique demandé par le serveur, la clé reste secrète),
+--  puis le titre est ajouté à SA bibliothèque. Aucun fichier ne transite par le serveur FiveM.
+-- ---------------------------------------------------------
+local IMP = CFG.Import or {}
+local Codes, Fails = {}, {}
+local CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+local function MaxBytes() return int(IMP.MaxMB, 15) * 1024 * 1024 end
+local function ImportUrl()
+    local u = trim(IMP.Url or '', 200)
+    if u == '' then
+        local b = GetConvar('web_baseUrl', '') or ''
+        if b ~= '' then u = b:match('^https?://') and b or ('https://' .. b) end
     end
-    -- 2. envoi des créations en attente (dans la limite des envois simultanés)
-    local running = MySQL.scalar.await("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE status = 'processing'") or 0
-    local free = int(AI.Concurrent, 4) - running
-    if free > 0 then
-        for _, r in ipairs(MySQL.query.await(("SELECT id, owner, title, price, lyrics, style, mood, voice FROM elyzea_ef_tracks WHERE status = 'queued' ORDER BY id ASC LIMIT %d"):format(free)) or {}) do
-            local input = {}
-            for k, v in pairs(AI.Extra or {}) do input[k] = v end
-            input[AI.LyricsField or 'lyrics'] = LyricsForModel(r.lyrics or '')
-            input[AI.PromptField or 'prompt'] = PromptFor(r.style, r.mood, r.voice)
-            local pid, err = ProviderCreate(input)
-            if pid then MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'processing', provider_id = ? WHERE id = ?", { pid, r.id })
-            else
-                print(('^1[elyzea_aura] ElyFy : Replicate a refusé la création n°%d : %s (jeton valide ? crédit sur le compte Replicate ?)^0'):format(r.id, tostring(err)))
-                Refund(r, 'Le service IA a refusé la demande' .. (err and (' : ' .. tostring(err):sub(1, 120)) or ''))
-            end
-        end
-    end
-    -- 3. fichiers jamais sauvegardés (le lien du fournisseur expire) : échec et remboursement
-    for _, r in ipairs(MySQL.query.await("SELECT id, owner, title, price FROM elyzea_ef_tracks WHERE status = 'ready_temp' AND ready_at < (NOW() - INTERVAL ? MINUTE)", { int(AI.KeepTempMinutes, 55) }) or {}) do
-        Refund(r, 'La chanson n\'a pas pu être sauvegardée sur le téléphone')
-    end
+    if u == '' then return nil end
+    return (u:gsub('/+$', '')) .. '/' .. GetCurrentResourceName() .. '/import'
 end
-ElyFyTick = AiTick   -- pour les tests hors jeu
-CreateThread(function()
-    while true do
-        Wait(6000)
-        local ok, err = pcall(AiTick)
-        if not ok then print('^1[elyzea_aura] ElyFy (studio IA) : ' .. tostring(err) .. '^0') end
+local function CleanCodes()
+    local now = os.time()
+    for c, v in pairs(Codes) do if v.exp < now then Codes[c] = nil end end
+end
+
+EF_('efImportCode', function(src, me)
+    if IMP.Enabled == false then return { ok = false, error = 'L\'import de musique est désactivé sur ce serveur' } end
+    local url = ImportUrl()
+    if not url then return { ok = false, error = 'Import non configuré : renseigne Config.ElyFy.Import.Url (adresse publique du serveur)' } end
+    CleanCodes()
+    for c, v in pairs(Codes) do if v.identifier == me.identifier then Codes[c] = nil end end
+    local code
+    repeat
+        code = ''
+        for _ = 1, 6 do local i = math.random(1, #CODE_CHARS) code = code .. CODE_CHARS:sub(i, i) end
+    until not Codes[code]
+    local minutes = math.max(2, int(IMP.CodeMinutes, 15))
+    Codes[code] = { identifier = me.identifier, artist = ArtistName(src, me), exp = os.time() + minutes * 60 }
+    return { ok = true, code = code, url = url, minutes = minutes, maxMb = int(IMP.MaxMB, 15) }
+end)
+
+-- Traitement des requêtes de la page d'import ; renvoie (code HTTP, réponse)
+local function ImportRequest(path, ip, body)
+    ip = tostring(ip or ''):gsub(':%d+$', '')
+    local now = os.time()
+    local f = Fails[ip]
+    if f and f.n >= 8 and now - f.t < 600 then return 429, { ok = false, error = 'Trop d\'essais. Réessaie dans quelques minutes.' } end
+    local ok, d = pcall(json.decode, body or '')
+    if not ok or type(d) ~= 'table' then return 400, { ok = false, error = 'Requête invalide' } end
+    CleanCodes()
+    local code = tostring(d.code or ''):upper():gsub('[^%w]', '')
+    local c = Codes[code]
+    if not c then
+        Fails[ip] = { n = (f and now - f.t < 600 and f.n or 0) + 1, t = now }
+        return 403, { ok = false, error = 'Code invalide ou expiré : demande un nouveau code dans ElyFy (Mes titres > Depuis mon ordinateur).' }
     end
+    if path == '/import/check' then return 200, { ok = true, artist = c.artist, maxMb = int(IMP.MaxMB, 15) } end
+    if path == '/import/start' then
+        local size = tonumber(d.size) or 0
+        if size <= 0 or size > MaxBytes() then return 400, { ok = false, error = ('Fichier trop lourd (%d Mo maximum)'):format(int(IMP.MaxMB, 15)) } end
+        if not tostring(d.type or ''):match('^audio/') then return 400, { ok = false, error = 'Ce fichier n\'est pas un fichier audio (MP3, M4A, OGG, WAV…)' } end
+        local cam = Config.Camera or {}
+        local presigned = cam.PresignedUrl or 'https://api.fivemanage.com/api/presigned-url?fileType=%s'
+        local r = Http('GET', presigned:format('audio'), '', cam.Headers or {})
+        local ok2, j = pcall(json.decode, r.body or '')
+        local target = ok2 and type(j) == 'table' and (j.presignedUrl or (j.data and j.data.presignedUrl))
+        if not target then
+            print(('^1[elyzea_aura] ElyFy (import) : l\'hébergeur n\'a pas donné de lien d\'envoi (code %s). Vérifie la clé Fivemanage (Config.Camera.Headers).^0'):format(tostring(r.code)))
+            return 502, { ok = false, error = 'L\'hébergeur de fichiers a refusé l\'envoi. Préviens le staff du serveur.' }
+        end
+        return 200, { ok = true, uploadUrl = target }
+    end
+    if path == '/import/finish' then
+        local url = trim(d.url, 500)
+        if not HostAllowed(url, CFG.UploadHosts or {}) then return 400, { ok = false, error = 'Lien du fichier refusé' } end
+        local title = trim(d.title, 80)
+        if title == '' then return 400, { ok = false, error = 'Donne un titre' } end
+        local public = d.public == true and 1 or 0
+        local id = MySQL.insert.await([[INSERT INTO elyzea_ef_tracks (owner, kind, artist, title, url, status, public, ready_at)
+            VALUES (?, 'upload', ?, ?, ?, 'ready', ?, NOW())]], { c.identifier, c.artist, title, url, public })
+        c.uses = (c.uses or 0) + 1
+        if c.uses >= 10 then Codes[code] = nil end   -- un code sert pour 10 titres au plus
+        Fails[ip] = nil
+        local s = SourceOf(c.identifier)
+        if s and Players[s] then
+            Notify(s, { app = APP, key = 'efImported', params = { title = title } })
+            Push(s, { type = 'imported', id = id, title = title })
+        end
+        return 200, { ok = true, id = id }
+    end
+    return 404, { ok = false }
+end
+ElyFyImportRequest = ImportRequest   -- pour les tests hors jeu
+
+SetHttpHandler(function(req, res)
+    local path = tostring(req.path or '/'):gsub('%?.*$', ''):gsub('/+$', '')
+    if path == '' then path = '/' end
+    if req.method == 'GET' and path == '/import' then
+        res.writeHead(200, { ['Content-Type'] = 'text/html; charset=utf-8', ['Cache-Control'] = 'no-store' })
+        res.send(LoadResourceFile(GetCurrentResourceName(), 'web/elyfy_import.html') or 'ElyFy : page introuvable')
+        return
+    end
+    if req.method == 'POST' and (path == '/import/check' or path == '/import/start' or path == '/import/finish') then
+        req.setDataHandler(function(body)
+            CreateThread(function()
+                local ok, code, out = pcall(ImportRequest, path, req.address, body)
+                if not ok then print('^1[elyzea_aura] ElyFy (import) : ' .. tostring(code) .. '^0') code, out = 500, { ok = false, error = 'Erreur du serveur' } end
+                res.writeHead(code, { ['Content-Type'] = 'application/json; charset=utf-8', ['Cache-Control'] = 'no-store' })
+                res.send(json.encode(out))
+            end)
+        end)
+        return
+    end
+    res.writeHead(404, { ['Content-Type'] = 'text/plain' })
+    res.send('')
 end)

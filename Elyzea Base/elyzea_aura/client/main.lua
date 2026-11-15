@@ -698,7 +698,7 @@ end)
 RegisterNetEvent('elyzea_aura:client:elypick', function(data)
     SendNUIMessage({ action = 'elypick', data = data })
 end)
--- ElyFy : studio IA (chanson prête / échec), envoyés par server/elyfy.lua
+-- ElyFy : titre importé depuis l'ordinateur (envoyé par server/elyfy.lua)
 RegisterNetEvent('elyzea_aura:client:elyfy', function(data)
     SendNUIMessage({ action = 'elyfy', data = data })
 end)

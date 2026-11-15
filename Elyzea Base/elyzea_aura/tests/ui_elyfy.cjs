@@ -26,7 +26,7 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   console.log('— Accueil');
   check((await p.textContent('[data-open="elyfy"]')).includes('ElyFy'), 'icône « ElyFy » sur l\'accueil du téléphone');
   await p.click('[data-open="elyfy"]'); await wait(1000);
-  check(await p.$('.ef-word') !== null && await p.$$eval('.ef-nav__b', (x) => x.length) === 4, 'logo ElyFy, barre : Accueil, Rechercher, Bibliothèque, Studio IA');
+  check(await p.$('.ef-word') !== null && await p.$$eval('.ef-nav__b', (x) => x.length) === 4, 'logo ElyFy, barre : Accueil, Rechercher, Bibliothèque, Mes titres');
   check(await p.$$eval('.ef-quick__b', (x) => x.length) === 4, 'accès rapides : titres likés, téléchargements, créations, playlists');
   check((await p.textContent('.ef-pad')).includes('Tendances de la semaine') && (await p.textContent('.ef-pad')).includes('Créations de la ville'), 'sections : récents, créations de la ville, tendances, nouveautés, mixes');
   await shot('01_accueil');
@@ -60,10 +60,10 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   check(await p.$('.ef-np') === null, 'lecteur fermé (la musique continue)');
   check((await music()).playing, 'la musique continue');
 
-  console.log('— Créations de la ville (IA) et paroles');
+  console.log('— Créations de la ville et paroles');
   await p.click('.ef-card[data-row="city:0"]'); await wait(900);
   await p.click('.ef-mini [data-np]'); await wait(600);
-  check((await p.textContent('.ef-np__lyr')).includes('Los Santos, ma ville') && await p.$('.ef-np .ef-tag--ai') !== null, 'chanson IA : badge IA et paroles affichées');
+  check((await p.textContent('.ef-np__lyr')).includes('Los Santos, ma ville'), 'titre de la ville : paroles affichées');
   await shot('03_paroles');
   await p.click('.ef-np [data-close]'); await wait(500);
 
@@ -112,27 +112,25 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   await p.fill('#ef-rn', 'Route de nuit 2'); await p.click('#ef-rngo'); await wait(700);
   check((await p.textContent('.ef-lhead h1')) === 'Route de nuit 2', 'playlist renommée');
 
-  console.log('— Studio IA');
-  await p.click('.ef-nav [data-tab="studio"]'); await wait(900);
-  check(await p.$$eval('.ef-cr', (x) => x.length) === 3, 'mes créations : prête, en composition, échec');
-  check(await p.$('.ef-cr--processing .ef-eq') !== null && (await p.textContent('.ef-cr--failed')).includes('remboursé'), 'composition en cours (animée) / échec remboursé');
-  await shot('09_studio');
-  await noOverflow('studio');
-  await p.click('.ef-cr--ready [data-pub]'); await wait(600);
-  check(await p.$('.ef-cr--ready [data-pub].on') === null, 'chanson repassée en privé');
-  await p.click('.ef-hero [data-new]'); await wait(700);
-  await p.fill('#ef-ct', 'Nuits de Vinewood');
-  await p.click('[data-ins="[Couplet]"]'); await p.keyboard.type('Je roule la nuit sur Vinewood');
-  await p.click('[data-ins="[Refrain]"]'); await p.keyboard.type('Los Santos ma ville');
-  check((await p.inputValue('#ef-cl')).includes('[Couplet]\nJe roule') && (await p.inputValue('#ef-cl')).includes('[Refrain]'), 'paroles avec structure ([Couplet], [Refrain])');
-  await p.click('#ef-cgo'); await wait(300);
-  check((await p.textContent('#ef-cerr')).includes('instru'), 'instru obligatoire');
-  await p.click('.ef-style[data-style="trap"]'); await p.click('.ef-chips [data-mood="Sombre"]'); await p.click('.ef-seg [data-voice="f"]'); await wait(200);
-  check(await p.$('.ef-style.on[data-style="trap"]') !== null && await p.$('.ef-chips .on') !== null && await p.$('.ef-seg [data-voice="f"].on') !== null, 'instru, ambiance et voix choisies');
-  await shot('10_ecrire');
-  await noOverflow('écrire');
-  await p.click('#ef-cgo'); await wait(1000);
-  check((await p.textContent('#ef-cr')).includes('Nuits de Vinewood') && await p.$('.ef-cr--queued') !== null, 'chanson envoyée : en file d\'attente');
+  console.log('— Mes titres (import)');
+  await p.click('.ef-nav [data-tab="mine"]'); await wait(900);
+  check(await p.$('[data-tab="studio"]') === null && !(await p.textContent('.ef')).includes('Studio IA'), 'plus aucune trace du studio IA');
+  check(await p.$$eval('.ef-cr', (x) => x.length) === 2, 'ma musique : 2 titres');
+  check((await p.textContent('.ef-cr[data-cid="2"]')).includes('Privé'), 'titre privé indiqué');
+  await shot('09_mes_titres');
+  await noOverflow('mes titres');
+  await p.click('.ef-cr[data-cid="2"] [data-pub]'); await wait(600);
+  check(await p.$('.ef-cr[data-cid="2"] [data-pub].on') !== null, 'titre publié');
+  await p.click('.ef-imp [data-pc]'); await wait(600);
+  check((await p.textContent('.ef-code')).replace(/\s/g, '') === 'K7P2QD' && (await p.textContent('.ef-url')).includes('/elyzea_aura/import'), 'depuis l\'ordinateur : adresse + code');
+  check((await p.textContent('#ef-exp')).includes('min'), 'durée de validité du code');
+  await shot('10_import_code');
+  await p.evaluate(async () => { await EFMock.call('__imported', { title: 'Mon son du PC' }); window.postMessage({ action: 'elyfy', data: { type: 'imported', title: 'Mon son du PC' } }, '*'); });
+  await wait(800);
+  check(await p.$('.sheet') === null && (await p.textContent('#ef-cr')).includes('Mon son du PC'), 'fichier reçu : la fenêtre se ferme et le titre apparaît');
+  await p.click('.ef-imp [data-link]'); await wait(500);
+  await p.fill('#ef-ut', 'Lien test'); await p.fill('#ef-uu', 'https://r2.fivemanage.com/x/a.mp3'); await p.click('#ef-ugo'); await wait(700);
+  check((await p.textContent('#ef-cr')).includes('Lien test'), 'ajout par lien');
 
   console.log('— Cohabitation avec Itoune');
   await p.evaluate(() => window.__elyzea.goHome()); await wait(400);
