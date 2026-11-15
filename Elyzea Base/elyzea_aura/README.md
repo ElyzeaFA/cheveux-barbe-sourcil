@@ -110,8 +110,9 @@ Directement dans le téléphone (tables `elyzea_ef_*` créées au démarrage). R
     choisit son fichier (MP3, M4A, OGG, WAV, 15 Mo max) : le fichier part directement sur Fivemanage (lien d'envoi à usage unique,
     la clé reste sur le serveur) et le titre arrive aussitôt dans son téléphone. 8 codes faux d'une même adresse = blocage 10 min.
   - **Avec un lien** : coller le lien d'un fichier audio déjà en ligne (hébergeurs de `Config.ElyFy.UploadHosts`).
-  - Adresse de la page : automatique si ton serveur est sur la liste FiveM (adresse cfx.re). Sinon, renseigne
-    `Config.ElyFy.Import.Url` dans `config_elyfy.lua` (ex. `'http://123.45.67.89:30120'`). La console l'indique au démarrage.
+  - Adresse de la page : trouvée au démarrage (adresse cfx.re, sinon `http://IP_PUBLIQUE:PORT`), le serveur garde celle qui répond.
+    La console affiche « page d'import joignable : … » ; commande console `elyfy_import` pour la revoir. Si la page ne s'ouvre pas
+    (hébergeur avec un autre port public, pare-feu), renseigne `Config.ElyFy.Import.Url` dans `config_elyfy.lua` (ex. `'http://123.45.67.89:30120'`).
 - La musique d'ElyFy utilise le lecteur du téléphone (comme Itoune) : haut-parleur pour les joueurs proches, île dynamique.
 
 ## ElyChat : messagerie photo (comme Snapchat)

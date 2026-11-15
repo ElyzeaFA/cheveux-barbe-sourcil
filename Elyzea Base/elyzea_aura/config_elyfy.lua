@@ -29,7 +29,8 @@ Config.ElyFy = {
     -- depuis le navigateur de son ordinateur. Le fichier part sur l'hébergeur de l'appareil photo (Fivemanage, Config.Camera).
     Import = {
         Enabled = true,
-        -- Adresse publique du serveur, sans / à la fin. Vide = automatique (adresse cfx.re du serveur, convar web_baseUrl).
+        -- Adresse publique du serveur, sans / à la fin. Vide = automatique : au démarrage, le serveur essaie son adresse cfx.re
+        -- puis http://IP_PUBLIQUE:PORT et garde celle qui répond (voir la console ; commande console : elyfy_import).
         -- Exemples : 'https://monserveur-abc123.users.cfx.re'  ou  'http://123.45.67.89:30120'
         Url = '',
         MaxMB = 15,          -- taille maximale d'un fichier

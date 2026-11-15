@@ -80,6 +80,10 @@ env.PerformHttpRequest = function(url, cb, method, body, headers)
     elseif url:find('replicate.delivery/', 1, true) then
         if not DL_OK then return cb(403, '', {}) end   -- par défaut : téléchargement impossible (repli sur le téléphone)
         return cb(200, ('\0\255ID3'):rep(600), {})
+    elseif url:find('api.ipify.org', 1, true) then
+        return cb(200, '203.0.113.5\n', {})
+    elseif url == 'http://203.0.113.5:30120/elyzea_aura/import/ping' then
+        return cb(PING_OK and 200 or 0, PING_OK and 'elyfy-ok' or '', {})
     elseif url:find('upload/once', 1, true) then
         UPLOADED = body
         return js(200, { data = { url = 'https://r2.fivemanage.com/srv/song.mp3' } })
@@ -189,6 +193,12 @@ if PHASE == 1 then
 
     print('— Import depuis l\'ordinateur')
     check(call('efImportCode', 1).error:find('Url'), 'sans adresse publique du serveur : import non configuré (message clair)')
+    PING_OK = true
+    AU.ElyFyDetectImport()
+    check(call('efImportCode', 1).url == 'http://203.0.113.5:30120/elyzea_aura/import', 'adresse trouvée toute seule (IP publique + port) et vérifiée')
+    PING_OK = false
+    AU.ElyFyDetectImport()
+    check(call('efImportCode', 1).url == 'http://203.0.113.5:30120/elyzea_aura/import', 'serveur qui ne peut pas se joindre lui-même : IP publique gardée quand même')
     AU.Config.ElyFy.Import.Url = 'https://srv-abc.users.cfx.re/'
     local ic = call('efImportCode', 1)
     check(ic.ok and #ic.code == 6 and ic.url == 'https://srv-abc.users.cfx.re/elyzea_aura/import' and ic.minutes == 15, 'code à 6 caractères + adresse de la page d\'import')

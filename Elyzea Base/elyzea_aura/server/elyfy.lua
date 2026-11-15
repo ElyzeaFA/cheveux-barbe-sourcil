@@ -33,7 +33,7 @@ CreateThread(function()
     Ready = true
     print(('^2[elyzea_aura] ElyFy prêt (Audius %s, YouTube %s, import depuis l\'ordinateur %s).^0'):format(
         (CFG.Audius or {}).Enabled ~= false and 'oui' or 'non', (((CFG.YouTubeApiKey or '') ~= '' or ((Config.Itoune or {}).YouTubeApiKey or '') ~= '') and 'oui' or 'non'),
-        ((CFG.Import or {}).Enabled == false and 'non') or (((CFG.Import or {}).Url or '') ~= '' or (GetConvar('web_baseUrl', '') or '') ~= '') and 'oui' or 'adresse à renseigner (Config.ElyFy.Import.Url)'))
+        (CFG.Import or {}).Enabled == false and 'non' or 'oui (adresse vérifiée dans quelques secondes)'))
 end)
 
 -- ---------------------------------------------------------
@@ -563,15 +563,68 @@ local IMP = CFG.Import or {}
 local Codes, Fails = {}, {}
 local CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 local function MaxBytes() return int(IMP.MaxMB, 15) * 1024 * 1024 end
+-- Adresse publique de la page d'import :
+--  1. Config.ElyFy.Import.Url si elle est renseignée (toujours prioritaire)
+--  2. sinon, trouvée au démarrage : le serveur essaie l'adresse cfx.re (web_baseUrl) puis http://IP_PUBLIQUE:PORT
+--     et garde la première qui répond vraiment (page /import/ping)
+local Detected = nil
+local function Base(u) u = trim(u or '', 200) if u == '' then return nil end if not u:match('^https?://') then u = 'http://' .. u end return (u:gsub('/+$', '')) end
+local function PageOf(base) return base .. '/' .. GetCurrentResourceName() .. '/import' end
 local function ImportUrl()
-    local u = trim(IMP.Url or '', 200)
-    if u == '' then
-        local b = GetConvar('web_baseUrl', '') or ''
-        if b ~= '' then u = b:match('^https?://') and b or ('https://' .. b) end
-    end
-    if u == '' then return nil end
-    return (u:gsub('/+$', '')) .. '/' .. GetCurrentResourceName() .. '/import'
+    local b = Base(IMP.Url)
+    if b then return PageOf(b) end
+    return Detected and PageOf(Detected) or nil
 end
+local function Ping(base)
+    local r = Http('GET', PageOf(base) .. '/ping', '', {})
+    return r.code == 200 and tostring(r.body or ''):find('elyfy-ok', 1, true) ~= nil
+end
+local function Candidates()
+    local list = {}
+    local web = GetConvar('web_baseUrl', '') or ''
+    if web ~= '' then list[#list + 1] = { base = web:match('^https?://') and web or ('https://' .. web), why = 'adresse cfx.re' } end
+    local port = tostring(GetConvar('endpoint_add_tcp', '') or ''):match(':(%d+)') or tostring(GetConvar('netPort', '30120') or '30120')
+    local r = Http('GET', 'https://api.ipify.org', '', {})
+    local ip = tostring(r.body or ''):match('^%s*(%d+%.%d+%.%d+%.%d+)%s*$')
+    if ip then list[#list + 1] = { base = ('http://%s:%s'):format(ip, port), why = 'IP publique du serveur' } end
+    return list
+end
+local function DetectImportUrl(verbose)
+    if IMP.Enabled == false then return end
+    local fixed = Base(IMP.Url)
+    if fixed then
+        local ok = Ping(fixed)
+        print((ok and '^2[elyzea_aura] ElyFy : page d\'import joignable : %s^0' or '^3[elyzea_aura] ElyFy : page d\'import (Config.ElyFy.Import.Url) : %s — le serveur n\'a pas pu la joindre lui-même. Vérifie-la dans ton navigateur.^0'):format(PageOf(fixed)))
+        return
+    end
+    local cands = Candidates()
+    for _, c in ipairs(cands) do
+        if Ping(c.base) then
+            Detected = c.base
+            print(('^2[elyzea_aura] ElyFy : page d\'import joignable (%s) : %s^0'):format(c.why, PageOf(c.base)))
+            return
+        end
+    end
+    -- rien n'a répondu (ex. le serveur ne peut pas se joindre lui-même) : l'IP publique reste le meilleur choix
+    local last = cands[#cands]
+    Detected = last and last.base or nil
+    if Detected then
+        print(('^3[elyzea_aura] ElyFy : page d\'import non vérifiée : %s — ouvre-la dans ton navigateur. Si elle ne s\'ouvre pas, mets la bonne adresse dans Config.ElyFy.Import.Url (config_elyfy.lua), ex. \'http://TON_IP:30120\'.^0'):format(PageOf(Detected)))
+    else
+        print('^1[elyzea_aura] ElyFy : adresse publique introuvable pour la page d\'import. Renseigne Config.ElyFy.Import.Url dans config_elyfy.lua (ex. \'http://TON_IP:30120\').^0')
+    end
+end
+ElyFyDetectImport = DetectImportUrl   -- pour les tests hors jeu
+CreateThread(function()
+    while not Ready do Wait(500) end
+    Wait(5000)   -- le temps que le serveur écoute sur son port
+    pcall(DetectImportUrl)
+end)
+-- Console du serveur : « elyfy_import » affiche l'adresse et la teste à nouveau
+RegisterCommand('elyfy_import', function(src)
+    if src ~= 0 then return end
+    CreateThread(function() pcall(DetectImportUrl, true) end)
+end, true)
 local function CleanCodes()
     local now = os.time()
     for c, v in pairs(Codes) do if v.exp < now then Codes[c] = nil end end
@@ -580,7 +633,7 @@ end
 EF_('efImportCode', function(src, me)
     if IMP.Enabled == false then return { ok = false, error = 'L\'import de musique est désactivé sur ce serveur' } end
     local url = ImportUrl()
-    if not url then return { ok = false, error = 'Import non configuré : renseigne Config.ElyFy.Import.Url (adresse publique du serveur)' } end
+    if not url then return { ok = false, error = 'Import pas encore prêt : adresse du serveur introuvable (le staff doit renseigner Config.ElyFy.Import.Url)' } end
     CleanCodes()
     for c, v in pairs(Codes) do if v.identifier == me.identifier then Codes[c] = nil end end
     local code
@@ -649,7 +702,12 @@ ElyFyImportRequest = ImportRequest   -- pour les tests hors jeu
 SetHttpHandler(function(req, res)
     local path = tostring(req.path or '/'):gsub('%?.*$', ''):gsub('/+$', '')
     if path == '' then path = '/' end
-    if req.method == 'GET' and path == '/import' then
+    if req.method == 'GET' and path == '/import/ping' then
+        res.writeHead(200, { ['Content-Type'] = 'text/plain', ['Access-Control-Allow-Origin'] = '*' })
+        res.send('elyfy-ok')
+        return
+    end
+    if req.method == 'GET' and (path == '/import' or path == '/') then
         res.writeHead(200, { ['Content-Type'] = 'text/html; charset=utf-8', ['Cache-Control'] = 'no-store' })
         res.send(LoadResourceFile(GetCurrentResourceName(), 'web/elyfy_import.html') or 'ElyFy : page introuvable')
         return
