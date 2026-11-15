@@ -12,6 +12,8 @@ shared_scripts {
     'config_elypick.lua',
     'config_elytok.lua',
     'config_elyfy.lua',
+    'config_elychat.lua',
+    'config_elymeet.lua',
     'config_phones.lua'
 }
 
@@ -25,6 +27,8 @@ server_scripts {
     'server/elypick.lua',
     'server/elytok.lua',
     'server/elyfy.lua',
+    'server/elychat.lua',
+    'server/elymeet.lua',
     'server/lasergame.lua',
     'server/maison.lua',
     'server/phones.lua'
@@ -43,6 +47,8 @@ files {
     'html/elypick.css',
     'html/elytok.css',
     'html/elyfy.css',
+    'html/elychat.css',
+    'html/elymeet.css',
     'html/lasergame.css',
     'html/maison.css',
     'html/fold.css',

@@ -57,6 +57,8 @@ local function Migrate()
         local n = MySQL.scalar.await('SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?', { ix[1], ix[2] })
         if n == 0 then pcall(MySQL.query.await, ('ALTER TABLE `%s` ADD INDEX `%s` (%s)'):format(ix[1], ix[2], ix[3])) end
     end
+    -- même collation que les autres tables (sinon les jointures échouent : « Illegal mix of collations »)
+    pcall(function() exports.elyzea_core:AlignCollations() end)
     Ready = true
     print('^2[elyzea_aura] ElyPick prêt (profils, stories, messages, activité).^0')
 end

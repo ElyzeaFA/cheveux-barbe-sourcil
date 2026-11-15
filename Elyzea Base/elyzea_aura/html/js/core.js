@@ -182,6 +182,12 @@ function elyDecor() {
 function elyMigrate() {
   const s = S.settings;
   if (!s || !S.profile || !s.setup) return;
+  // Étincelle a été remplacée par ElyMeet : l'application installée suit
+  if (Array.isArray(s.installed) && s.installed.includes('etincelle')) {
+    const inst = s.installed.filter(x => x !== 'etincelle');
+    if (!inst.includes('elymeet')) inst.push('elymeet');
+    saveSettings({ installed: inst });
+  }
   let done = false;
   try { done = localStorage.getItem('ely_theme_v6_' + S.profile.number) === '1'; localStorage.setItem('ely_theme_v6_' + S.profile.number, '1'); } catch (e) { done = true; }
   if (done) return;
@@ -342,6 +348,14 @@ const NOTIFS = {
   epMessage:      { title: '{name}', fallback: 'vous a envoyé une publication' },
   efReady:        { title: 'ElyFy', text: 'Votre chanson « {title} » est prête !' },
   efFailed:       { title: 'ElyFy', text: 'La création de « {title} » a échoué : vous êtes remboursé.' },
+  ecSnap:         { title: 'ElyChat', text: '{name} vous a envoyé un snap.' },
+  ecChat:         { title: '{name} sur ElyChat' },
+  ecFriendReq:    { title: 'ElyChat', text: '{name} vous a ajouté en ami.' },
+  ecFriendOk:     { title: 'ElyChat', text: '{name} a accepté votre demande.' },
+  emMatch:        { title: 'ElyMeet', text: 'C\'est un Crush avec {name} !' },
+  emBolt:         { title: 'ElyMeet', text: '{name} vous a envoyé un coup de foudre.' },
+  emMessage:      { title: '{name} sur ElyMeet' },
+  emCrossed:      { title: 'ElyMeet', text: 'Vous venez de croiser {name}.' },
   etLike:         { title: 'ElyTok', text: '{name} a aimé votre vidéo.' },
   etComment:      { title: '{name} a commenté votre vidéo', fallback: 'Nouveau commentaire' },
   etFollow:       { title: 'ElyTok', text: '{name} s\'est abonné(e) à vous.' },

@@ -702,6 +702,25 @@ end)
 RegisterNetEvent('elyzea_aura:client:elyfy', function(data)
     SendNUIMessage({ action = 'elyfy', data = data })
 end)
+-- ElyChat / ElyMeet : snaps, messages, amis, crushs, croisements (server/elychat.lua, server/elymeet.lua)
+RegisterNetEvent('elyzea_aura:client:elychat', function(data)
+    SendNUIMessage({ action = 'elychat', data = data })
+end)
+RegisterNetEvent('elyzea_aura:client:elymeet', function(data)
+    SendNUIMessage({ action = 'elymeet', data = data })
+end)
+-- Noms des lieux (quartier, rue) pour les cartes d'ElyChat et d'ElyMeet
+RegisterNUICallback('labelCoords', function(data, cb)
+    local out = {}
+    for i, p in ipairs(type(data) == 'table' and type(data.points) == 'table' and data.points or {}) do
+        if i > 60 then break end
+        local x, y = tonumber(p.x) or 0.0, tonumber(p.y) or 0.0
+        local zone = GetLabelText(GetNameOfZone(x + 0.0, y + 0.0, 30.0))
+        local street = GetStreetNameFromHashKey((GetStreetNameAtCoord(x + 0.0, y + 0.0, 30.0)))
+        out[i] = { zone = (zone and zone ~= 'NULL') and zone or '', street = street or '' }
+    end
+    cb({ labels = out })
+end)
 -- ElyTok : pastilles, nouveaux messages (envoyés par server/elytok.lua)
 RegisterNetEvent('elyzea_aura:client:elytok', function(data)
     SendNUIMessage({ action = 'elytok', data = data })

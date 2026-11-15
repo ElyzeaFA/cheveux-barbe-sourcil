@@ -12,6 +12,8 @@ local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players,
 local CFG = Config.ElyFy or {}
 local AI = CFG.AI or {}
 local APP = 'elyfy'
+-- Jeton Replicate : config_elyfy.lua OU server.cfg (set elyfy_replicate_token "r8_...") — le server.cfg n'est jamais écrasé par une mise à jour
+if (AI.Token or '') == '' then AI.Token = GetConvar('elyfy_replicate_token', '') end
 
 -- ---------------------------------------------------------
 --  Base de données
@@ -28,10 +30,15 @@ CreateThread(function()
             if not ok then print('^1[elyzea_aura] ElyFy : table non créée : ' .. tostring(err) .. '^0') end
         end
     end
+    -- même collation que les autres tables (sinon les jointures échouent : « Illegal mix of collations »)
+    pcall(function() exports.elyzea_core:AlignCollations() end)
     Ready = true
     print(('^2[elyzea_aura] ElyFy prêt (Audius %s, YouTube %s, studio IA %s).^0'):format(
         (CFG.Audius or {}).Enabled ~= false and 'oui' or 'non', (((CFG.YouTubeApiKey or '') ~= '' or ((Config.Itoune or {}).YouTubeApiKey or '') ~= '') and 'oui' or 'non'),
         (AI.Enabled ~= false and (AI.Token or '') ~= '') and 'oui' or 'non configuré'))
+    if AI.Enabled ~= false and (AI.Token or '') == '' then
+        print('^3[elyzea_aura] ElyFy : studio IA désactivé, aucun jeton Replicate. Ajoute dans server.cfg : set elyfy_replicate_token "r8_..." (replicate.com > API tokens).^0')
+    end
 end)
 
 -- ---------------------------------------------------------
@@ -574,6 +581,36 @@ local function ProviderGet(id)
     return 'processing'
 end
 
+-- Copie du fichier du fournisseur sur l'hébergeur du serveur (Fivemanage), faite PAR LE SERVEUR :
+-- le navigateur du téléphone peut être bloqué en téléchargeant le fichier (CORS). Même envoi que l'appareil photo.
+local function ServerRehost(id, srcUrl)
+    local r = Http('GET', srcUrl, '', {})
+    if r.code ~= 200 or type(r.body) ~= 'string' or #r.body < 1000 then
+        print(('^3[elyzea_aura] ElyFy : fichier de l\'IA non téléchargé (code %s), le téléphone du créateur va essayer^0'):format(tostring(r.code)))
+        return nil
+    end
+    local cam = Config.Camera or {}
+    local presigned = cam.PresignedUrl or 'https://api.fivemanage.com/api/presigned-url?fileType=%s'
+    local l = Http('GET', presigned:format('audio'), '', cam.Headers or {})
+    local ok, d = pcall(json.decode, l.body or '')
+    local target = ok and type(d) == 'table' and (d.presignedUrl or (d.data and d.data.presignedUrl))
+    if not target then
+        print(('^3[elyzea_aura] ElyFy : l\'hébergeur n\'a pas donné de lien d\'envoi (code %s). Vérifie la clé Fivemanage (Config.Camera.Headers).^0'):format(tostring(l.code)))
+        return nil
+    end
+    local boundary = ('----ElyFy%d'):format(math.random(100000, 999999))
+    local body = ('--%s\r\nContent-Disposition: form-data; name="file"; filename="elyfy_%d.mp3"\r\nContent-Type: audio/mpeg\r\n\r\n'):format(boundary, id)
+        .. r.body .. ('\r\n--%s--\r\n'):format(boundary)
+    local u = Http('POST', target, body, { ['Content-Type'] = 'multipart/form-data; boundary=' .. boundary })
+    local ok2, res = pcall(json.decode, u.body or '')
+    local url = ok2 and type(res) == 'table' and (res.url or (res.data and res.data.url))
+    if type(url) ~= 'string' or not url:match('^https://') then
+        print(('^3[elyzea_aura] ElyFy : envoi sur l\'hébergeur refusé (code %s) : %s^0'):format(tostring(u.code), tostring(u.body):sub(1, 200)))
+        return nil
+    end
+    return url:sub(1, 500)
+end
+
 local function Refund(row, why)
     MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'failed', error = ?, temp_url = NULL WHERE id = ? AND status <> 'failed'", { why, row.id })
     local price = tonumber(row.price) or 0
@@ -666,11 +703,16 @@ local function AiTick()
     for _, r in ipairs(MySQL.query.await("SELECT id, owner, title, price, provider_id, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age FROM elyzea_ef_tracks WHERE status = 'processing' LIMIT 20") or {}) do
         local st, out, err = ProviderGet(r.provider_id)
         if st == 'succeeded' and out and out:match('^https://') then
-            MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'ready_temp', temp_url = ?, ready_at = NOW() WHERE id = ?", { out:sub(1, 500), r.id })
+            local saved = ServerRehost(r.id, out)
+            if saved then
+                MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'ready', url = ?, temp_url = NULL, ready_at = NOW() WHERE id = ?", { saved, r.id })
+            else
+                MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'ready_temp', temp_url = ?, ready_at = NOW() WHERE id = ?", { out:sub(1, 500), r.id })
+            end
             local s = SourceOf(r.owner)
             if s and Players[s] then
                 Notify(s, { app = APP, key = 'efReady', params = { title = r.title } })
-                Push(s, { type = 'ai', id = r.id, status = 'ready_temp' })
+                Push(s, { type = 'ai', id = r.id, status = saved and 'ready' or 'ready_temp' })
             end
         elseif st == 'failed' or (st == 'succeeded' and not out) then Refund(r, 'L\'IA n\'a pas pu créer la chanson' .. (err and (' : ' .. err) or ''))
         elseif (tonumber(r.age) or 0) > timeout then Refund(r, 'Temps dépassé') end
@@ -686,7 +728,10 @@ local function AiTick()
             input[AI.PromptField or 'prompt'] = PromptFor(r.style, r.mood, r.voice)
             local pid, err = ProviderCreate(input)
             if pid then MySQL.update.await("UPDATE elyzea_ef_tracks SET status = 'processing', provider_id = ? WHERE id = ?", { pid, r.id })
-            else Refund(r, 'Le service IA a refusé la demande' .. (err and (' : ' .. tostring(err):sub(1, 120)) or '')) end
+            else
+                print(('^1[elyzea_aura] ElyFy : Replicate a refusé la création n°%d : %s (jeton valide ? crédit sur le compte Replicate ?)^0'):format(r.id, tostring(err)))
+                Refund(r, 'Le service IA a refusé la demande' .. (err and (' : ' .. tostring(err):sub(1, 120)) or ''))
+            end
         end
     end
     -- 3. fichiers jamais sauvegardés (le lien du fournisseur expire) : échec et remboursement

@@ -218,6 +218,8 @@ const handlers = {
   elypick(d) { epPush(d); },
   elytok(d) { etPush(d); },
   elyfy(d) { efPush(d); },
+  elychat(d) { ecPush(d); },
+  elymeet(d) { emPush(d); },
   auraDrop(d) {
     S.pendingDrops.push(d);
     if (S.open && !S.locked) showDropPrompt(d);

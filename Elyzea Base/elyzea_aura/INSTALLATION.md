@@ -213,9 +213,11 @@ Itoune n'a besoin d'**aucune ressource externe** : le téléphone lit YouTube lu
 
 Réglages utiles : `Config.Itoune.Distance` (portée du haut-parleur en mètres) et `Config.Itoune.MaxVolume`.
 
-### Étincelle (rencontres)
+### ElyMeet (rencontres, remplace Étincelle) et ElyChat
 
-Rien à installer : l'application se télécharge depuis **Appli**. `Config.Dating.MinAge` fixe l'âge minimum des profils (18 par défaut).
+Rien à installer : les applications se téléchargent depuis **Appli** et leurs tables sont créées au démarrage. Réglages : `config_elymeet.lua`
+(âge minimum, rayon de croisement, coups de foudre par jour…) et `config_elychat.lua` (durées des snaps, ElyScore, effacement des messages…).
+Les cartes utilisent l'image de `elyzea_hud` : garde cette ressource démarrée.
 
 ### Livrézy (livraison de courses)
 
@@ -287,7 +289,8 @@ Connecte-toi avec deux joueurs, ou demande à quelqu'un de t'aider, puis coche c
 - [ ] Ton numéro et ton solde s'affichent sur l'accueil.
 - [ ] L'app Photo prend une photo et une vidéo, et les deux apparaissent dans la Galerie.
 - [ ] Dans Itoune, un lien YouTube se lance ; avec le haut-parleur activé, un joueur à côté entend la musique.
-- [ ] Deux joueurs créent un profil Étincelle, se likent mutuellement et peuvent discuter.
+- [ ] Deux joueurs créent un profil ElyMeet, se croisent en ville (moins de 60 m), se likent mutuellement et peuvent discuter.
+- [ ] Deux amis ElyChat s'envoient un snap (vu une fois) ; avec le partage de position, chacun voit l'autre sur la carte.
 - [ ] HelpMécano détecte le véhicule ; la dépanneuse arrive, le mécanicien répare et le véhicule est remis à neuf.
 - [ ] Une commande Livrézy est débitée ; après la préparation, un point vert et un tracé GPS apparaissent ; le livreur arrive, remet le sac et les articles arrivent dans l'inventaire.
 - [ ] AuraDrop (touche le widget « Mon numéro ») détecte un joueur proche et lui envoie ta fiche.

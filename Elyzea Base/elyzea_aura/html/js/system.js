@@ -21,8 +21,9 @@ const APPS = {
   instapick: { label: 'ElyPick', store: true },
   elytok:    { label: 'ElyTok', store: true },
   elyfy:     { label: 'ElyFy', store: true },
+  elychat:   { label: 'ElyChat', store: true },
+  elymeet:   { label: 'ElyMeet', store: true },
   itoune:    { label: 'Itoune', store: true },
-  etincelle: { label: 'Étincelle', store: true },
   livrezy:   { label: 'Livrézy', store: true },
   helpmecano:{ label: 'HelpMécano', store: true },
   garage:    { label: 'Garage', store: true },
@@ -57,6 +58,8 @@ function renderHome() {
       : id === 'bank' && S.bankPending > 0 ? `<span class="badge">${S.bankPending}</span>`
       : id === 'instapick' && S.epBadge > 0 ? `<span class="badge">${S.epBadge > 99 ? '99+' : S.epBadge}</span>`
       : id === 'elytok' && S.etBadge > 0 ? `<span class="badge">${S.etBadge > 99 ? '99+' : S.etBadge}</span>`
+      : id === 'elychat' && S.ecBadge > 0 ? `<span class="badge">${S.ecBadge > 99 ? '99+' : S.ecBadge}</span>`
+      : id === 'elymeet' && S.emBadge > 0 ? `<span class="badge">${S.emBadge > 99 ? '99+' : S.emBadge}</span>`
       : id === 'lasergame' && S.lgBadge > 0 ? `<span class="badge">${S.lgBadge > 99 ? '99+' : S.lgBadge}</span>` : '';
     return `<button class="app-icon ${S.freshApp === id ? 'fresh' : ''}" data-open="${id}" aria-label="${t(APPS[id].label)}">${appTile(id, badge)}<span>${t(APPS[id].label)}</span></button>`;
   };

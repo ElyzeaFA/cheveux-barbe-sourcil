@@ -77,6 +77,12 @@ env.PerformHttpRequest = function(url, cb, method, body, headers)
         local p = PRED[id]
         if p.status == 'succeeded' then return js(200, { status = 'succeeded', output = 'https://replicate.delivery/' .. id .. '/song.mp3' }) end
         return js(200, { status = p.status, error = p.error })
+    elseif url:find('replicate.delivery/', 1, true) then
+        if not DL_OK then return cb(403, '', {}) end   -- par défaut : téléchargement impossible (repli sur le téléphone)
+        return cb(200, ('\0\255ID3'):rep(600), {})
+    elseif url:find('upload/once', 1, true) then
+        UPLOADED = body
+        return js(200, { data = { url = 'https://r2.fivemanage.com/srv/song.mp3' } })
     elseif url:find('presigned-url', 1, true) then
         return js(200, { presignedUrl = 'https://api.fivemanage.com/upload/once' })
     end
@@ -235,6 +241,14 @@ if PHASE == 1 then
     py_update("UPDATE elyzea_ef_tracks SET ready_at = NOW() - INTERVAL 2 HOUR WHERE id = ?", { c4.id })
     tick()
     check(count("SELECT COUNT(*) FROM elyzea_ef_tracks WHERE id = ? AND status = 'failed'", { c4.id }) == 1, 'fichier jamais sauvegardé (lien expiré) : échec et remboursement')
+    -- copie faite par le serveur (le téléphone n'a rien à faire)
+    DL_OK = true
+    PRED[PRED[4]].status = 'succeeded'
+    tick()
+    local row = py_query('SELECT status, url FROM elyzea_ef_tracks WHERE id = ?', { c5.id })[1]
+    check(row.status == 'ready' and row.url == 'https://r2.fivemanage.com/srv/song.mp3' and UPLOADED and UPLOADED:find('\0\255ID3', 1, true) and UPLOADED:find('audio/mpeg', 1, true),
+        'copie par le serveur : fichier téléchargé puis envoyé sur l\'hébergeur (octets intacts), chanson prête')
+    DL_OK = false
     -- studio désactivé
     AU.Config.ElyFy.AI.Token = ''
     check(call('efAiCreate', 1, { title = 'X', lyrics = LY, style = 'pop' }).error:find('pas encore activé'), 'sans jeton : studio désactivé (rien n\'est débité)')

@@ -36,6 +36,8 @@ CreateThread(function()
             if not ok then print('^1[elyzea_aura] ElyTok : table non créée : ' .. tostring(err) .. '^0') end
         end
     end
+    -- même collation que les autres tables (sinon les jointures échouent : « Illegal mix of collations »)
+    pcall(function() exports.elyzea_core:AlignCollations() end)
     Ready = true
     print('^2[elyzea_aura] ElyTok prêt (fil Pour toi, abonnements, commentaires, messages).^0')
 end)
@@ -121,7 +123,7 @@ local function ET_(name, needAccount, fn)
     Register(name, function(src, me, args)
         if not HasApp(me, APP) then return { ok = false, error = 'Application non installée' } end
         local t = GetGameTimer()
-        while not Ready and GetGameTimer() - t < 10000 do Wait(100) end
+        while not Ready and GetGameTimer() - t < 7000 do Wait(100) end
         if not Ready then return { ok = false, error = 'ElyTok démarre, réessaie' } end
         local acc
         if needAccount then

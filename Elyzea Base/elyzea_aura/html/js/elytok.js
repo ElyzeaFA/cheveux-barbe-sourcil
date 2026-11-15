@@ -99,7 +99,14 @@ async function etRender(params = {}) {
     etShell(page, loading(), { bare: true });
     const r = await etApi('etInit');
     if (tok !== ET.tok) return;
-    if (!r.ok) { etShell(page, empty(t('ElyTok indisponible'), etErr(r)), { bare: true }); return; }
+    if (!r.ok) {
+      // cause précise (pour l'admin) + bouton pour réessayer
+      const why = { unknown: 'ElyTok n\'est pas chargé sur le serveur (server/elytok.lua).', server: 'Erreur du serveur : voir la console serveur (ligne « Erreur dans etInit »).',
+        timeout: 'Le serveur ne répond pas, réessaie dans un instant.', not_loaded: 'Personnage pas encore chargé, réessaie dans un instant.', network: 'Connexion au téléphone impossible.' }[r.error];
+      etShell(page, `<div class="et-retry">${empty(t('ElyTok indisponible'), why ? t(why) : etErr(r))}<button class="btn et-grad" id="et-retry">${t('Réessayer')}</button></div>`, { bare: true });
+      $('#et-retry').onclick = () => etRender(params);
+      return;
+    }
     ET.acc = r.account || null; ET.badges = r.badges || ET.badges; Object.assign(ET.limits, r.limits || {}); ET.ready = true;
     etSyncBadge();
   }
@@ -821,7 +828,8 @@ const ETMock = (() => {
       draw();
     } catch (e) { resolve(''); }
   });
-  const ready = Promise.all([[280, 'Vinewood'], [20, 'Del Perro'], [200, 'Sandy Shores'], [320, 'Maze Bank'], [140, 'Paleto']].map(([h, l]) => makeClip(h, l))).then(list => clips.push(...list));
+  // seulement dans l'aperçu navigateur : en jeu, rien n'est enregistré au chargement du téléphone
+  const ready = !IS_BROWSER ? Promise.resolve() : Promise.all([[280, 'Vinewood'], [20, 'Del Perro'], [200, 'Sandy Shores'], [320, 'Maze Bank'], [140, 'Paleto']].map(([h, l]) => makeClip(h, l))).then(list => clips.push(...list));
   const img = (h, txt = '') => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="hsl(${h},60%,45%)"/><text x="100" y="125" font-family="sans-serif" font-size="80" text-anchor="middle" fill="#fff">${txt}</text></svg>`);
   const U = {
     me: { username: 'lena.duval', name: 'Léna Duval', avatar: img(280, 'L'), bio: 'Je filme Los Santos 🎥 #vinewood' },

@@ -15,7 +15,8 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - **Appareil photo et caméra** dans le téléphone : viseur en direct, photos et vidéos (jusqu'à 20 s) envoyées automatiquement dans la galerie. screenshot-basic n'est plus nécessaire.
 - **Galerie** avec filtres Photos / Vidéos et lecture des vidéos.
 - **Itoune** : collez un lien YouTube ou Spotify, la musique se lance. Mode haut-parleur : les joueurs autour l'entendent, le volume baisse avec la distance (aucune ressource externe nécessaire).
-- **Étincelle**, application de rencontre : profil avec photos, cartes à glisser, coups de cœur, matchs et messagerie privée.
+- **ElyMeet** (remplace Étincelle), rencontres comme happn : les personnes croisées en ville, carte des croisements, coups de foudre, crushs et messagerie privée.
+- **ElyChat**, messagerie photo comme Snapchat : snaps vus une fois, chat éphémère, ElyScore, flammes, carte des amis (partage de position).
 
 ## Nouveautés de la version 5.2
 - **Livrézy** : commande de repas, snacks, boissons et alcool depuis le téléphone (plus cher qu'en supérette, avec frais de livraison). Un livreur PNJ part en voiture du commerce le plus proche, se suit en direct sur la carte et dans l'app, descend vous remettre la commande puis repart. Paiement par banque ou en espèces, annulation possible, remboursement automatique en cas de problème.
@@ -39,7 +40,7 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Nécessite `elyzea_jobphone` (sinon : « Annuaire des entreprises indisponible »).
 
 ## Applications
-Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), **ElyFy** (musique + studio IA), Itoune, Étincelle, Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
+Téléphone, Messages (position GPS, fiche contact, envoi d'argent), Contacts, Banque, Galerie, Appareil photo, Notes, Plans, Urgences, Calcul, Annonces, Réglages, et le magasin **Appli** pour télécharger Birdy, **ElyPick** (ex-InstaPick), **ElyTok** (vidéos, à partir de l'ElyAura 3), **ElyFy** (musique + studio IA), Itoune, **ElyChat**, **ElyMeet** (ex-Étincelle), Livrézy, HelpMécano, Garage, CarPlay, **Santé** et **Grossesse** (suivi de grossesse : données de la ressource `elyzea_famille`, privées). La tablette de bord ElyzeaCarPlay s'ouvre en voiture avec F7.
 
 ## Exports
 ```lua
@@ -105,12 +106,36 @@ Directement dans le téléphone (tables `elyzea_ef_*` créées au démarrage). R
   limitée selon le modèle (100 / 300 / 1 000). Ce n'est pas une copie de fichier MP3 : la lecture passe toujours par la source du titre.
 - **Studio IA** (comme Suno) : titre, paroles avec structure ([Couplet], [Refrain], [Pont]…), instru (12 styles), ambiance, voix.
   L'IA compose et chante la chanson ; elle reste privée jusqu'à ce que le joueur la publie dans « Créations de la ville ».
-  - Fournisseur : **Replicate** (modèle `minimax/music-1.5`). Mets ton jeton dans `Config.ElyFy.AI.Token` (sans jeton : studio désactivé).
+  - Fournisseur : **Replicate** (modèle `minimax/music-1.5`, payant à l'usage sur replicate.com). Mets ton jeton dans `server.cfg` :
+    `set elyfy_replicate_token "r8_..."` (jamais écrasé par une mise à jour), ou dans `Config.ElyFy.AI.Token`. Sans jeton : studio désactivé,
+    et la console serveur l'indique au démarrage. Un refus de Replicate (jeton invalide, plus de crédit) est écrit dans la console.
     Le jeton reste sur le serveur. Prix, quotas par joueur et par serveur, remboursement automatique en cas d'échec.
-  - Le fichier du fournisseur expire au bout d'environ 1 h : le téléphone du créateur le copie sur ton hébergeur (Fivemanage, même méthode
-    que l'appareil photo : `Config.Camera.UploadMethod = 'presigned'`). Sinon la création échoue et elle est remboursée.
+  - Le fichier du fournisseur expire au bout d'environ 1 h : **le serveur** le copie sur ton hébergeur (Fivemanage, clé de `Config.Camera.Headers`).
+    Si ça échoue, le téléphone du créateur essaie à son tour ; sinon la création échoue et elle est remboursée.
 - **Artistes de la ville** : un joueur peut publier son propre titre (lien audio Fivemanage…) sous son nom d'artiste.
 - La musique d'ElyFy utilise le lecteur du téléphone (comme Itoune) : haut-parleur pour les joueurs proches, île dynamique.
+
+## ElyChat : messagerie photo (comme Snapchat)
+Directement dans le téléphone (tables `elyzea_ec_*` créées au démarrage). Réglages : `config_elychat.lua`.
+- **Chat** : liste façon Snapchat (« Nouveau snap », « Nouveau chat », « Envoyé », « Ouvert », flammes), conversation où les messages vus
+  disparaissent après 24 h (appui sur un message = l'enregistrer).
+- **Caméra** : une photo de la galerie (l'appareil photo du téléphone s'ouvre d'un appui), texte posé sur la photo, minuteur (3 / 5 / 10 s / sans limite),
+  envoi à plusieurs amis. Un snap ne se voit **qu'une fois** (le lien n'est plus jamais redonné).
+- **ElyScore** : +1 par ami à qui on envoie un snap photo, +1 par snap reçu ouvert. **Flammes** : un snap échangé chaque jour dans les deux sens.
+- **Carte** : les amis qui partagent leur position avec toi (en direct, ou leur dernière position connue s'ils sont hors ligne).
+  Partage : **tous mes amis**, **seulement certains**, ou **mode fantôme** (par défaut ; la dernière position est alors effacée). Bouton « Y aller » (GPS).
+- **Amis** : recherche par nom ou @, demandes reçues / envoyées, retrait.
+
+## ElyMeet : rencontres (comme happn), remplace Étincelle
+Directement dans le téléphone (tables `elyzea_em_*` créées au démarrage). Réglages : `config_elymeet.lua`.
+- **Inscription en 6 étapes** : prénom et âge, genre, qui rencontrer + ce que je cherche, photos (de la galerie, 6 max), centres d'intérêt (3 à 10),
+  métier et bio. Un ancien profil Étincelle pré-remplit l'inscription ; les joueurs qui avaient Étincelle ont ElyMeet installé à la place.
+- **Croisés** : le serveur relève les positions (toutes les 15 s) ; deux profils compatibles qui passent à moins de 60 m se croisent.
+  Fil : photo, âge, « il y a 12 min · Vespucci Beach », nombre de croisements, centres d'intérêt en commun. Passer / J'aime / Coup de foudre (1 par jour).
+- **Carte** : les lieux de croisement (arrondis à 120 m : la position exacte n'est jamais montrée), regroupés ; un appui = qui tu as croisé là.
+- **Crushs** : j'aime réciproque = Crush (écran de célébration), messagerie privée sans échanger de numéro, retrait du crush.
+- **Mon profil** : aperçu, chaque partie modifiable, tranche d'âge, **mode invisible** (plus de croisement).
+- Les cartes des deux applis utilisent l'image satellite de `elyzea_hud` (`html/img/map.jpg`).
 
 ## ElyTok : réseau social vidéo (à partir de l'ElyAura 3)
 Directement dans le téléphone (aucune ressource à ajouter, tables `elyzea_et_*` créées au démarrage). Réglages : `config_elytok.lua`.

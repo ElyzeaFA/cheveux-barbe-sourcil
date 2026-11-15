@@ -29,7 +29,7 @@ Config.ElyFy = {
     -- Le jeton reste sur le serveur : il n'est jamais envoyé aux joueurs.
     AI = {
         Enabled = true,
-        Token = '',                       -- jeton Replicate (r8_...) : vide = studio désactivé (message aux joueurs)
+        Token = '',                       -- jeton Replicate (r8_...). Mieux : dans server.cfg  set elyfy_replicate_token "r8_..."  (jamais écrasé par une mise à jour)
         Model = 'minimax/music-1.5',      -- 'proprio/modele' ou 'proprio/modele:version'
         LyricsField = 'lyrics',           -- champ « paroles » du modèle
         PromptField = 'prompt',           -- champ « style / instru » du modèle
