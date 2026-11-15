@@ -101,9 +101,9 @@ async function etRender(params = {}) {
     if (tok !== ET.tok) return;
     if (!r.ok) {
       // cause précise (pour l'admin) + bouton pour réessayer
-      const why = { unknown: 'ElyTok n\'est pas chargé sur le serveur (server/elytok.lua).', server: 'Erreur du serveur : voir la console serveur (ligne « Erreur dans etInit »).',
+      const why = { unknown: 'ElyTok n\'est pas chargé sur le serveur (server/elytok.lua).', server: 'Erreur du serveur (réparation automatique tentée). Détail :',
         timeout: 'Le serveur ne répond pas, réessaie dans un instant.', not_loaded: 'Personnage pas encore chargé, réessaie dans un instant.', network: 'Connexion au téléphone impossible.' }[r.error];
-      etShell(page, `<div class="et-retry">${empty(t('ElyTok indisponible'), why ? t(why) : etErr(r))}<button class="btn et-grad" id="et-retry">${t('Réessayer')}</button></div>`, { bare: true });
+      etShell(page, `<div class="et-retry">${empty(t('ElyTok indisponible'), (why ? t(why) : etErr(r)) + (r.detail ? `<code class="ely-errd">${esc(r.detail)}</code>` : ''))}<button class="btn et-grad" id="et-retry">${t('Réessayer')}</button></div>`, { bare: true });
       $('#et-retry').onclick = () => etRender(params);
       return;
     }

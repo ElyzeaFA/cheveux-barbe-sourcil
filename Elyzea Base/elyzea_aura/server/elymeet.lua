@@ -8,6 +8,7 @@
 --  visible que si on l'a croisé (ou qu'on a un crush avec lui) ; les photos viennent de SA galerie.
 -- =========================================================
 local A = AuraCore
+if A.AddRepair then A.AddRepair('^em%u', 'sql/elymeet.sql', 'elyzea_em_', 'ElyMeet') end
 local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players, A.trim, A.HasApp
 local CFG = Config.ElyMeet or {}
 local APP = 'elymeet'

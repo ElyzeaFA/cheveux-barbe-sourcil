@@ -9,6 +9,7 @@
 --    (identifiant du personnage), jamais une valeur envoyée par le téléphone.
 -- =========================================================
 local A = AuraCore
+if A.AddRepair then A.AddRepair('^ep%u', 'sql/elypick.sql', 'elyzea_ep_', 'ElyPick') end
 local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players, A.trim, A.HasApp
 local EP = Config.ElyPick or {}
 local APP = 'instapick'

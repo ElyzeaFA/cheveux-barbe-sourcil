@@ -202,6 +202,16 @@ if PHASE == 1 then
     py_update('REPLACE INTO sim_state VALUES (?, ?)', { 'v1', v1.id })
 else
     print('— Après redémarrage du serveur')
+    -- base « abîmée » : collation différente de elyzea_accounts et table manquante → réparation automatique
+    local ref = py_scalar("SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'elyzea_accounts'")
+    local other = ref == 'utf8mb4_general_ci' and 'utf8mb4_unicode_ci' or 'utf8mb4_general_ci'
+    py_update('ALTER TABLE elyzea_et_profiles CONVERT TO CHARACTER SET utf8mb4 COLLATE ' .. other)
+    py_update('DROP TABLE elyzea_et_comment_likes')
+    local broken = pcall(py_query, "SELECT a.username FROM elyzea_accounts a JOIN elyzea_et_profiles p ON p.identifier = a.identifier LIMIT 1")
+    local ri = call('etInit', 1)
+    check(not broken and ri.ok and ri.account ~= nil, 'collation différente + table effacée : réparé automatiquement, ElyTok s\'ouvre')
+    check(py_scalar("SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'elyzea_et_profiles'") == ref, 'tables remises sur la collation de elyzea_accounts')
+    check(py_scalar("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'elyzea_et_comment_likes'") == 1, 'table manquante recréée')
     local v1 = tonumber(py_scalar("SELECT v FROM sim_state WHERE k = 'v1'"))
     local p = call('etProfile', 2, { username = 'lena.duval' })
     check(p.ok and p.profile.counts.followers == 1 and p.profile.counts.videos == 1, 'comptes, abonnés et vidéos conservés')

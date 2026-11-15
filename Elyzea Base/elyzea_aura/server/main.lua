@@ -269,6 +269,43 @@ end
 local Callbacks = {}
 local function Register(name, fn) Callbacks[name] = fn end
 
+-- ---------------------------------------------------------
+--  Réparation automatique des applis (ElyTok, ElyFy, ElyChat…) : si un appel échoue côté base de données,
+--  les tables de l'appli sont recréées et mises sur la MÊME collation que elyzea_accounts (sinon MariaDB/MySQL
+--  refuse les jointures : « Illegal mix of collations »), puis l'appel est refait une fois.
+-- ---------------------------------------------------------
+local Repairs, RepairedAt = {}, {}
+local function AddRepair(pattern, file, prefix, label) Repairs[#Repairs + 1] = { pattern = pattern, file = file, prefix = prefix, label = label } end
+local function RepairModule(r)
+    if RepairedAt[r.file] and GetGameTimer() - RepairedAt[r.file] < 60000 then return false end
+    RepairedAt[r.file] = GetGameTimer()
+    print(('^3[elyzea_aura] %s : réparation automatique des tables (%s*)…^0'):format(r.label, r.prefix))
+    local sql = LoadResourceFile(GetCurrentResourceName(), r.file) or ''
+    for statement in sql:gmatch('[^;]+') do
+        local q = statement:gsub('%-%-[^\n]*', ''):gsub('^%s+', ''):gsub('%s+$', '')
+        if q ~= '' then
+            local ok, err = pcall(MySQL.query.await, q)
+            if not ok then print(('^1[elyzea_aura] %s : table non créée : %s^0'):format(r.label, tostring(err))) end
+        end
+    end
+    local ref = MySQL.scalar.await("SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'elyzea_accounts'")
+    if type(ref) ~= 'string' or not ref:match('^utf8mb4_') then
+        ref = 'utf8mb4_unicode_ci'
+        local ok, err = pcall(MySQL.query.await, 'ALTER TABLE `elyzea_accounts` CONVERT TO CHARACTER SET utf8mb4 COLLATE ' .. ref)
+        print(ok and '^2[elyzea_aura] Table elyzea_accounts passée en utf8mb4.^0' or ('^1[elyzea_aura] elyzea_accounts non convertie : ' .. tostring(err) .. '^0'))
+    end
+    local rows = MySQL.query.await([[SELECT TABLE_NAME AS t FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+        AND (TABLE_NAME LIKE ? OR TABLE_NAME IN ('elyzea_gallery', 'elyzea_tracks')) AND (TABLE_COLLATION IS NULL OR TABLE_COLLATION <> ?)]], { r.prefix .. '%', ref }) or {}
+    for _, row in ipairs(rows) do
+        local name = tostring(row.t or ''):gsub('[^%w_]', '')
+        if name ~= '' then
+            local ok, err = pcall(MySQL.query.await, ('ALTER TABLE `%s` CONVERT TO CHARACTER SET utf8mb4 COLLATE %s'):format(name, ref))
+            print(ok and ('^2[elyzea_aura] Table %s alignée sur %s.^0'):format(name, ref) or ('^1[elyzea_aura] Table %s non alignée : %s^0'):format(name, tostring(err)))
+        end
+    end
+    return true
+end
+
 RegisterNetEvent('elyzea_aura:server:cb', function(name, reqId, args)
     local src = source
     local fn = Callbacks[name]
@@ -283,8 +320,16 @@ RegisterNetEvent('elyzea_aura:server:cb', function(name, reqId, args)
     end
     local ok, result = pcall(fn, src, me, type(args) == 'table' and args or {})
     if not ok then
-        print(('[elyzea_aura] Erreur dans %s : %s'):format(name, result))
-        result = { ok = false, error = 'server' }
+        print(('^1[elyzea_aura] Erreur dans %s : %s^0'):format(name, result))
+        for _, r in ipairs(Repairs) do
+            if name:match(r.pattern) and RepairModule(r) then
+                ok, result = pcall(fn, src, me, type(args) == 'table' and args or {})
+                if ok then print(('^2[elyzea_aura] %s : réparé, ça fonctionne.^0'):format(r.label)) else print(('^1[elyzea_aura] Toujours en erreur dans %s : %s^0'):format(name, result)) end
+                break
+            end
+        end
+        -- le téléphone affiche l'erreur exacte (pour le propriétaire du serveur)
+        if not ok then result = { ok = false, error = 'server', detail = tostring(result):gsub('^.-:%d+: ', ''):sub(1, 220) } end
     end
     TriggerClientEvent('elyzea_aura:client:cb', src, reqId, result)
 end)
@@ -2537,7 +2582,7 @@ end)
 --  Accès interne pour les modules du téléphone (server/elypick.lua)
 -- ---------------------------------------------------------
 AuraCore = {
-    Register = Register, Notify = Notify, Players = Players, trim = trim, HasApp = HasApp,
+    Register = Register, AddRepair = AddRepair, Notify = Notify, Players = Players, trim = trim, HasApp = HasApp,
     GetCharName = GetCharName, IsSchemaReady = function() return SchemaReady end, EnsurePlayer = EnsurePlayer,
     -- ElyFy (server/elyfy.lua) : banque, liens musicaux (YouTube / Spotify / audio), encodage d'URL
     GetBank = GetBank, RemoveBank = RemoveBank, AddBank = AddBank, AddBankOffline = AddBankOffline,

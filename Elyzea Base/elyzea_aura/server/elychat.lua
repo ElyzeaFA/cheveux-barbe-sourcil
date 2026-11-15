@@ -9,6 +9,7 @@
 --  d'utilisateur, jamais par leur identifiant ; la position n'est donnée qu'aux amis autorisés.
 -- =========================================================
 local A = AuraCore
+if A.AddRepair then A.AddRepair('^ec%u', 'sql/elychat.sql', 'elyzea_ec_', 'ElyChat') end
 local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players, A.trim, A.HasApp
 local CFG = Config.ElyChat or {}
 local APP = 'elychat'

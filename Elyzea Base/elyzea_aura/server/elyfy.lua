@@ -8,6 +8,7 @@
 --  (jamais un lien libre), vérifie l'appareil, les quotas, l'argent. Le jeton IA reste sur le serveur.
 -- =========================================================
 local A = AuraCore
+if A.AddRepair then A.AddRepair('^ef%u', 'sql/elyfy.sql', 'elyzea_ef_', 'ElyFy') end
 local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players, A.trim, A.HasApp
 local CFG = Config.ElyFy or {}
 local AI = CFG.AI or {}

@@ -75,8 +75,8 @@ async function emRender(params = {}) {
     const r = await emApi('emInit');
     if (tok !== EM.tok) return;
     if (!r.ok) {
-      const why = { unknown: 'ElyMeet n\'est pas chargé sur le serveur (server/elymeet.lua).', server: 'Erreur du serveur : voir la console serveur.', timeout: 'Le serveur ne répond pas, réessaie dans un instant.' }[r.error];
-      emShell(page, `<div class="em-retry">${empty(t('ElyMeet indisponible'), why ? t(why) : emErr(r))}<button class="btn em-btn" id="em-retry">${t('Réessayer')}</button></div>`, { bare: true });
+      const why = { unknown: 'ElyMeet n\'est pas chargé sur le serveur (server/elymeet.lua).', server: 'Erreur du serveur (réparation automatique tentée). Détail :', timeout: 'Le serveur ne répond pas, réessaie dans un instant.' }[r.error];
+      emShell(page, `<div class="em-retry">${empty(t('ElyMeet indisponible'), (why ? t(why) : emErr(r)) + (r.detail ? `<code class="ely-errd">${esc(r.detail)}</code>` : ''))}<button class="btn em-btn" id="em-retry">${t('Réessayer')}</button></div>`, { bare: true });
       $('#em-retry').onclick = () => emRender(params);
       return;
     }

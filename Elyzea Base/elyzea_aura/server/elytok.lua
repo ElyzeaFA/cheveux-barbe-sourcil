@@ -8,6 +8,7 @@
 --    et seules les vidéos de SA galerie (filmées avec l'appareil photo) peuvent être publiées.
 -- =========================================================
 local A = AuraCore
+if A.AddRepair then A.AddRepair('^et%u', 'sql/elytok.sql', 'elyzea_et_', 'ElyTok') end
 local Register, Notify, Players, trim, HasApp = A.Register, A.Notify, A.Players, A.trim, A.HasApp
 local ET = Config.ElyTok or {}
 local APP = 'elytok'

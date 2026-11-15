@@ -79,8 +79,8 @@ async function ecRender(params = {}) {
     const r = await ecApi('ecInit');
     if (tok !== EC.tok) return;
     if (!r.ok) {
-      const why = { unknown: 'ElyChat n\'est pas chargé sur le serveur (server/elychat.lua).', server: 'Erreur du serveur : voir la console serveur.', timeout: 'Le serveur ne répond pas, réessaie dans un instant.' }[r.error];
-      ecShell(page, `<div class="ec-retry">${empty(t('ElyChat indisponible'), why ? t(why) : ecErr(r))}<button class="btn ec-btn" id="ec-retry">${t('Réessayer')}</button></div>`, { bare: true });
+      const why = { unknown: 'ElyChat n\'est pas chargé sur le serveur (server/elychat.lua).', server: 'Erreur du serveur (réparation automatique tentée). Détail :', timeout: 'Le serveur ne répond pas, réessaie dans un instant.' }[r.error];
+      ecShell(page, `<div class="ec-retry">${empty(t('ElyChat indisponible'), (why ? t(why) : ecErr(r)) + (r.detail ? `<code class="ely-errd">${esc(r.detail)}</code>` : ''))}<button class="btn ec-btn" id="ec-retry">${t('Réessayer')}</button></div>`, { bare: true });
       $('#ec-retry').onclick = () => ecRender(params);
       return;
     }
