@@ -35,7 +35,6 @@ function ClearPedTasksImmediately() PLAYING = nil end
 PITCH = 0
 function GetEntityPitch() return PITCH end
 function IsPedRagdoll() return false end
-function GetGroundZFor_3dCoord(x, y, z) return true, 0.0 end
 ROLL = {}
 function SetEntityRotation(e, x, y, z) ENT[e].h = z % 360 ROLL[#ROLL + 1] = y end
 function SetEntityAngularVelocity() end
@@ -92,6 +91,13 @@ KEYS, JUST = {}, {}
 function IsDisabledControlPressed(_, c) return KEYS[c] == true end
 function IsDisabledControlJustPressed(_, c) return JUST[c] == true end
 function IsControlJustPressed(_, c) return JUST[c] == true end
+GROUNDF = function(x, y) return 0.0 end
+function GetGroundZFor_3dCoord(x, y, z) local g = GROUNDF(x, y) if g > z then return false, 0.0 end return true, g end
+WALL = false
+function StartExpensiveSynchronousShapeTestLosProbe() return 1 end
+function GetShapeTestResult() return 1, WALL and 1 or 0 end
+function SetEntityHasGravity(e, on) ENT[e].grav = on end
+function SetEntityCoordsNoOffset(e, x, y, z) ENT[e].pos = vector3(x, y, z) end
 ''')
 L.execute(open(os.path.join(root, 'config.lua'), encoding='utf-8').read())
 L.execute(open(os.path.join(root, 'client.lua'), encoding='utf-8').read())
@@ -123,95 +129,71 @@ feet = [L.eval(f"GetPedBoneCoords(1, {b})") for b in (20781, 35502)]
 check(all(abs(f.x - g.ENT[VEH].pos.x) < 0.04 for f in feet), 'les DEUX pieds sur la planche : ligne des pieds tournée dans sa longueur, centrée (' + ', '.join(f'{(f.x - g.ENT[VEH].pos.x) * 100:+.1f} cm' for f in feet) + ' de l\'axe)')
 check(all(abs(f.y - g.ENT[VEH].pos.y) < 0.35 for f in feet), 'pieds dans la longueur de la planche (ni devant, ni derrière)')
 check(g.PLAYING == 'amb@world_human_stand_impatient@male@no_sign@base', 'posture DEBOUT jouée (repli automatique si une animation manque)')
-# pousser : accélération forte au départ puis plus douce, jamais plus de 25 km/h
+MAX = 30 / 3.6
+def spd():
+    v = g.ENT[VEH].vel
+    return (v.x ** 2 + v.y ** 2) ** 0.5
+check(g.ENT[VEH].grav is False, 'sur le skate : déplacé directement (plus de physique qui accroche la route)')
+# W : accélère en douceur jusqu'à 30 km/h
+y0 = g.ENT[VEH].pos.y
 L.execute("KEYS[32] = true")
 sp = []
-for _ in range(900):
+for _ in range(400):
     g.step(1)
-    v = g.ENT[VEH].vel
-    sp.append((v.x ** 2 + v.y ** 2) ** 0.5)
+    sp.append(spd())
 mx = max(sp)
-check(mx <= 25 / 3.6 + 1e-6 and mx > 25 / 3.6 - 0.05, f'W : accélère jusqu\'à {mx * 3.6:.1f} km/h, jamais plus de 25 km/h')
-check(sp[60] - sp[0] > sp[300] - sp[240], 'poussée forte au départ, plus douce près de la vitesse max')
-acc = sorted(sp[i + 1] - sp[i] for i in range(0, 120))
-flat = sum(1 for x in acc if x <= 0.002)
-check(acc[-1] > 0.05 and flat > 20, f'W : la vitesse monte par coups de pied (élans, puis {flat} images de glisse entre deux poussées)')
-check(abs(g.exportsT['GetSpeed']() - 25) < 0.1, 'vitesse lisible par le HUD (export GetSpeed)')
-# pente descendante : pas plus de 25 km/h
-L.execute("PITCH = -12")
-g.step(60)
-v = g.ENT[VEH].vel
-check((v.x ** 2 + v.y ** 2) ** 0.5 <= 25 / 3.6 + 1e-6, 'descente : toujours 25 km/h max')
-# roue libre en descente : on garde de la vitesse ; en montée : on en perd
-L.execute("KEYS[32] = false PITCH = -8")
-g.step(120)
-v1 = (g.ENT[VEH].vel.x ** 2 + g.ENT[VEH].vel.y ** 2) ** 0.5
-L.execute("PITCH = 10")
-g.step(60)
-v2 = (g.ENT[VEH].vel.x ** 2 + g.ENT[VEH].vel.y ** 2) ** 0.5
-check(v1 > 25 / 3.6 - 0.3 and v2 < v1 - 1.0, f'pentes : la descente porte ({v1 * 3.6:.0f} km/h), la montée freine ({v2 * 3.6:.0f} km/h)')
-L.execute("PITCH = 0 KEYS[32] = true")
+check(MAX - 0.01 < mx <= MAX + 1e-6, f'W : avance jusqu\'à {mx * 3.6:.1f} km/h, jamais plus de 30 km/h')
+inc = [sp[i + 1] - sp[i] for i in range(len(sp) - 1)]
+check(min(inc) >= -1e-9 and max(inc) < 0.06, 'accélération régulière : aucun à-coup, aucun recul')
+check(g.ENT[VEH].pos.y - y0 > 20, f'le skate avance vraiment ({g.ENT[VEH].pos.y - y0:.0f} m)')
+check(abs(g.exportsT['GetSpeed']() - 30) < 0.1, 'vitesse lisible par le HUD (export GetSpeed)')
+# trottoir de 20 cm puis redescente : jamais bloqué, la vitesse ne bouge pas
+yc = g.ENT[VEH].pos.y
+L.execute(f"GROUNDF = function(x, y) if y > {yc + 2} and y < {yc + 7} then return 0.2 end return 0.0 end")
+g.step(25)
+z_up = g.ENT[VEH].pos.z
+check(abs(z_up - (0.2 + 0.18)) < 0.02 and spd() > MAX - 0.01, f'trottoir : monté sans être bloqué ni ralenti ({spd() * 3.6:.0f} km/h)')
+g.step(40)
+check(abs(g.ENT[VEH].pos.z - 0.18) < 0.02 and spd() > MAX - 0.01, 'redescente du trottoir : toujours à pleine vitesse')
+L.execute("GROUNDF = function() return 0.0 end")
+# petits objets de la route : ignorés (seuls murs / véhicules sont testés, à hauteur de genou)
+check(abs(g.ENT[VEH].pos.x) < 1e-6, 'tout droit : trajectoire parfaitement droite')
+# vrai mur : arrêt net, sans tomber
+L.execute("WALL = true")
+g.step(2)
+check(spd() < 0.01 and g.ATT[1] is not None and not g.RAG, 'mur ou véhicule devant : arrêt, le joueur reste sur le skate')
+L.execute("WALL = false")
 g.step(200)
-# virage à gauche : direction progressive, corps penché dans le virage
+# virage
 h0 = g.ENT[VEH].h
 L.execute("KEYS[34] = true")
-g.step(2)
-d2 = (g.ENT[VEH].h - h0) % 360
-g.step(60)
-check(d2 < 1.5, f'direction progressive : pas de coup de volant ({d2:.2f}° au premier instant)')
-yaw_full = (g.ENT[VEH].h - h0) % 360
-check(55 < yaw_full < 110, f'A à pleine vitesse : virage en courbe large et réaliste ({yaw_full:.0f}° en 1 s)')
-check(-6.0 < g.ATT[1].ry < -2.0 and abs(g.ATT[1].rx) < 0.01, f'posture naturelle : le corps penche à peine dans le virage ({g.ATT[1].ry:.1f}°)')
-prop = L.eval("(function() for e, a in pairs(ATT) do if e ~= 1 then return a end end end)()")
-check(abs(prop.rx) < 1e-6 and abs(prop.ry) < 1e-6, 'skate fixe : la planche reste à plat dans le virage')
-check(all(abs(r) < 1e-6 for r in g.ROLL.values()), 'skate fixe : aucun roulis, pas de balancement')
-check(g.LOOK > 0, 'le regard du joueur suit la route')
+g.step(62)
 L.execute("KEYS[34] = false")
-g.step(90)
-check(abs(g.ATT[1].ry) < 1.0, 'redressé en sortie de virage')
-# roue libre : le skate garde son élan
-L.execute("KEYS[32] = true")
-g.step(400)
+yaw = (g.ENT[VEH].h - h0) % 360
+check(35 < yaw < 90, f'A : tourne en douceur ({yaw:.0f}° en 1 s à pleine vitesse)')
+g.step(60)
+# roue libre
 L.execute("KEYS[32] = false")
-s0 = g.exportsT['GetSpeed']()
-g.step(125)
-s2 = g.exportsT['GetSpeed']()
-check(s0 - 8 < s2 < s0 - 0.5, f'roue libre : le skate garde son élan et ralentit doucement ({s0:.0f} → {s2:.0f} km/h en 2 s)')
-# vitesse moyenne (~10 km/h) : virage plus serré qu'à pleine vitesse
+s0 = spd()
+g.step(62)
+check(s0 - 1.5 < spd() < s0 - 0.8, f'touches lâchées : ralentit doucement ({s0 * 3.6:.0f} → {spd() * 3.6:.0f} km/h en 1 s)')
+# S : freine puis recule
 L.execute("KEYS[33] = true")
-while g.exportsT['GetSpeed']() > 10: g.step(1)
-L.execute("KEYS[33] = false KEYS[34] = true")
-g.step(10)
-hm = g.ENT[VEH].h
-g.step(60)
-L.execute("KEYS[34] = false")
-yaw_mid = (g.ENT[VEH].h - hm) % 360
-check(yaw_mid > yaw_full, f'plus lent = virage plus serré ({yaw_mid:.0f}°/s à ~10 km/h contre {yaw_full:.0f}°/s à 25 km/h)')
-# à l'arrêt : on peut pivoter sur place
-L.execute("KEYS[32] = false KEYS[33] = true")
-g.step(200)
-L.execute("KEYS[33] = false KEYS[35] = true")
-h1 = g.ENT[VEH].h
-g.step(60)
-L.execute("KEYS[35] = false KEYS[32] = true")
-check(50 < (h1 - g.ENT[VEH].h) % 360 < 100, f'à l\'arrêt : on pivote sur place (D : {(h1 - g.ENT[VEH].h) % 360:.0f}° en 1 s)')
-g.step(300)
-# plus de saut : Espace ne fait rien
+yb = None
+mn = 99
+for i in range(500):
+    g.step(1)
+    f = g.ENT[VEH].vel
+    fwd = -__import__('math').sin(__import__('math').radians(g.ENT[VEH].h)) * f.x + __import__('math').cos(__import__('math').radians(g.ENT[VEH].h)) * f.y
+    mn = min(mn, fwd)
+check(-15 / 3.6 - 1e-6 <= mn < -15 / 3.6 + 0.01, f'S : freine puis recule ({-mn * 3.6:.0f} km/h max en arrière)')
+L.execute("KEYS[33] = false")
+g.step(400)
+check(spd() < 0.01, 'touches lâchées : s\'arrête tout seul')
+# plus de saut
 L.execute("JUST[22] = true")
 g.step(1)
-check(g.ENT[VEH].vel.z <= 0.01, 'Espace : aucun saut (sauts retirés)')
-# frein : jusqu'à l'arrêt, sans recul
-L.execute("KEYS[32] = false KEYS[33] = true")
-g.step(160)
-v = g.ENT[VEH].vel
-check((v.x ** 2 + v.y ** 2) ** 0.5 < 0.01, 'S : freine jusqu\'à l\'arrêt, sans recul')
-L.execute("KEYS[33] = false KEYS[32] = true")
-g.step(500)
-# choc contre un mur : vitesse réelle à zéro d'un coup → chute
-L.execute("ENT[VEH].vel = vector3(0, 0, 0)")
-g.step(2)
-check(g.ATT[1] is None and g.RAG, 'choc contre un obstacle à pleine vitesse : le joueur tombe')
-check(any(e[1] == 'elyzea_skate:pickup' and e[2] is True for e in g.SERVER.values()), 'chute : le skate retourne dans l\'inventaire')
+check(g.ENT[VEH].vel.z <= 0.01, 'Espace : aucun saut')
 # le serveur range le skate, on le ressort (objet utilisé) : on remonte directement
 L.execute("KEYS[32] = false RAG = false SERVER = {}")
 g.fire('elyzea_skate:stowed')
@@ -222,6 +204,8 @@ check(g.ATT[1] is not None, 'objet réutilisé : skate reposé, on remonte direc
 L.execute("JUST[23] = true")
 g.step(2)
 check(g.ATT[1] is None and not g.RAG, 'F : on descend, sans tomber')
+L.execute("for e, x in pairs(ENT) do if x.veh then VEH2 = e end end")
+check(g.ENT[g.VEH2].grav is True, 'en descendant : le skate retrouve sa physique normale')
 check(g.PLAYING is None, 'après la descente : aucune animation en boucle, le joueur peut bouger')
 g.step(30)
 check(g.PLAYING is None, 'toujours libre quelques instants plus tard (plus de blocage)')

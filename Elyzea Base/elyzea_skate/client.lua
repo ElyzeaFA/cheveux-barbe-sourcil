@@ -3,8 +3,8 @@
 --  Le skate : une planche (v_res_skateboard) fixée sur un petit véhicule RC invisible
 --  qui donne les roues, les pentes et les collisions. Le joueur est attaché debout dessus.
 --  Utiliser l'objet : le skate est posé ET on monte dessus directement.
---  W : pousser · S : freiner · A / D : tourner (le corps et la planche penchent dans le virage)
---  F : descendre (le skate retourne directement dans l'inventaire). 25 km/h maximum, même en descente.
+--  W : avancer · S : freiner puis reculer · A / D : tourner
+--  F : descendre (le skate retourne directement dans l'inventaire). 30 km/h maximum.
 -- =====================================================================
 local board = nil        -- { veh, prop, h (hauteur du véhicule au-dessus du sol), rotZ, propZ } : MON skate posé
 local riding = false
@@ -12,7 +12,7 @@ local speed = 0.0        -- vitesse (m/s)
 local steer = 0.0        -- direction lissée (-1 droite … 1 gauche)
 local mountedAt = 0      -- le même appui sur F ne fait pas monter puis redescendre
 local anim = nil         -- animation de glisse retenue (première qui existe dans le jeu)
-local MAX = (Config.MaxSpeed or 25.0) / 3.6
+local MAX = (Config.MaxSpeed or 30.0) / 3.6
 
 local function notify(text, kind)
     if not pcall(function() exports.elyzea_core:Notify(text, kind or 'inform', nil, 'Skate') end) then
@@ -118,7 +118,7 @@ local function mount()
     riding = true
     if not board.told then
         board.told = true
-        notify('W avancer · A / D tourner · S freiner · F descendre', 'inform')
+        notify('W avancer · S freiner / reculer · A / D tourner · F descendre', 'inform')
     end
 end
 
@@ -133,6 +133,8 @@ local function dismount(fall)
     ClearPedTasksImmediately(ped)
     TaskClearLookAt(ped)
     if board and DoesEntityExist(board.veh) then
+        SetEntityCollision(board.veh, true, true)     -- le skate retrouve sa physique normale
+        SetEntityHasGravity(board.veh, true)
         if board.prop and DoesEntityExist(board.prop) then attachProp(0.0) end
         local v = GetEntityVelocity(board.veh)
         SetEntityVelocity(board.veh, v.x * 0.3, v.y * 0.3, v.z)
@@ -215,108 +217,122 @@ CreateThread(function()
 end)
 
 -- ---------------------------------------------------------------------
--- Conduite (physique simple mais réaliste, gérée par le skate seul ; 25 km/h max, même en descente)
---  · W : coups de pied réguliers (chaque poussée donne un élan, plus faible près de la vitesse max)
---  · roue libre : le skate garde son élan et ralentit doucement (roulement + air)
---  · S : frein au pied, progressif
---  · A / D : virage en courbe ; le rayon s'élargit avec la vitesse ; pivot (kick turn) à l'arrêt
---  · adhérence : la trajectoire suit la planche, avec un très léger glissement si on tourne fort
---  · pentes : la descente fait prendre de la vitesse, la montée en fait perdre
+-- Conduite SIMPLE : W avance, S freine puis recule, A / D tournent. 30 km/h maximum.
+-- Le skate est déplacé directement (sans la physique du petit véhicule) : il glisse sans à-coups,
+-- passe les trottoirs, bosses et petits objets de la route ; seuls un vrai mur ou un véhicule l'arrêtent (sans chute).
 -- ---------------------------------------------------------------------
 local BLOCK = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 44, 140, 141, 142, 143, 257, 263 }
+local MAXR = (Config.MaxReverse or 15.0) / 3.6
+
+-- sol sous un point (on sonde un peu au-dessus pour monter les trottoirs)
+local function groundAt(x, y, z)
+    local ok, gz = GetGroundZFor_3dCoord(x, y, z + (Config.StepUp or 0.6), false)
+    if ok then return gz end
+end
+-- vrai obstacle devant (mur, bâtiment, véhicule) à hauteur de genou : les petits objets au sol sont ignorés
+local function wallAhead(veh, x, y, z, dx, dy, dist)
+    local h = Config.WallHeight or 0.7
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(x, y, z + h, x + dx * dist, y + dy * dist, z + h, 1 + 2, veh, 7)
+    local _, hit = GetShapeTestResult(ray)
+    return hit == 1 or hit == true
+end
+
+local function freeBoard(veh, on)
+    SetEntityCollision(veh, not on, not on)
+    SetEntityHasGravity(veh, not on)
+end
+
 CreateThread(function()
     local K = Config.Keys
-    local lastReal, lastLean = 0.0, 0.0
-    local pushWait, pushLeft = 0.0, 0.0     -- temps avant le prochain coup de pied, élan restant à donner
-    local vx, vy = 0.0, 0.0                 -- vitesse réelle du skate au sol (m/s, repère du monde)
+    local pos, vz, pitch, lastLean = nil, 0.0, 0.0, 0.0
     while true do
-        if not riding then lastReal, lastLean, pushWait, pushLeft, vx, vy = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 Wait(250) else
+        if not riding then
+            if pos and board and board.veh and DoesEntityExist(board.veh) then freeBoard(board.veh, false) end
+            pos, vz, pitch, lastLean = nil, 0.0, 0.0, 0.0
+            Wait(250)
+        else
             local ped, veh = PlayerPedId(), board and board.veh
             if not veh or not DoesEntityExist(veh) or IsEntityDead(ped) or not IsEntityAttachedToEntity(ped, veh) then
                 dismount(false)
             else
                 local dt = math.min(GetFrameTime(), 0.05)
+                if not pos then
+                    local c = GetEntityCoords(veh)
+                    pos = { x = c.x, y = c.y, z = groundAt(c.x, c.y, c.z) or (c.z - board.h) }
+                    freeBoard(veh, true)
+                end
                 for i = 1, #BLOCK do DisableControlAction(0, BLOCK[i], true) end
                 local fwd, back = IsDisabledControlPressed(0, 32), IsDisabledControlPressed(0, 33)
                 local left, right = IsDisabledControlPressed(0, 34), IsDisabledControlPressed(0, 35)
-                local onGround = GetEntityHeightAboveGround(veh) < (board.h or 0.2) + 0.35
-                -- vitesse (le long de la planche)
-                if onGround then
-                    if fwd and not back then
-                        -- coups de pied : un élan tous les PushInterval, donné en douceur sur 0,3 s
-                        pushWait = pushWait - dt
-                        if pushWait <= 0.0 then
-                            pushWait = Config.PushInterval or 0.75
-                            pushLeft = (Config.PushBoost or 1.9) * math.max(0.45, (1.0 - speed / MAX) ^ 0.6)
-                        end
-                    else
-                        pushWait = 0.0          -- prochain appui sur W : poussée immédiate
-                    end
-                    if pushLeft > 0.0 then
-                        local give = math.min(pushLeft, pushLeft * clamp(dt / 0.3, 0.0, 1.0) + 0.02)
-                        speed, pushLeft = speed + give, pushLeft - give
-                    end
-                    -- roulement + air : le skate garde son élan et ralentit doucement
-                    local drag = (Config.Rolling or 0.22) + (Config.Air or 0.012) * speed * speed
-                    if back then drag = drag + (Config.Brake or 3.8) ; pushLeft = 0.0 end   -- frein au pied
-                    speed = math.max(0.0, speed - drag * dt)
-                    -- pente : nez vers le bas = on accélère, vers le haut = on ralentit
-                    speed = speed - math.sin(math.rad(GetEntityPitch(veh))) * 9.81 * (Config.Slope or 0.6) * dt
-                end
-                speed = clamp(speed, 0.0, MAX)
-                -- choc (mur, voiture) : la vitesse réelle chute d'un coup → on tombe
-                local v = GetEntityVelocity(veh)
-                local f = GetEntityForwardVector(veh)
-                local real = math.sqrt(v.x * v.x + v.y * v.y)                -- vitesse réelle au sol
-                if lastReal > 4.0 and lastReal - real > (Config.CrashSpeed or 5.0) then dismount(true) goto continue end
-                -- retenu par un obstacle (trottoir, poteau) : on repart de la vitesse réelle
-                if real + 0.6 < math.sqrt(vx * vx + vy * vy) and speed > 1.0 then speed, vx, vy = math.min(speed, real), v.x, v.y end
-                lastReal = real
-                -- direction lissée ; virage en courbe : rayon = rayon mini + v² / adhérence latérale
+                -- vitesse : W avance, S freine puis recule, rien = roue libre qui ralentit doucement
+                local acc, brk, coast = Config.Accel or 3.0, Config.Brake or 6.0, Config.Coast or 1.2
+                if fwd and not back then
+                    speed = speed < 0.0 and math.min(0.0, speed + brk * dt) or speed + acc * dt
+                elseif back and not fwd then
+                    speed = speed > 0.0 and math.max(0.0, speed - brk * dt) or speed - acc * 0.7 * dt
+                elseif speed > 0.0 then speed = math.max(0.0, speed - coast * dt)
+                else speed = math.min(0.0, speed + coast * dt) end
+                speed = clamp(speed, -MAXR, MAX)
+                -- direction : douce, un peu moins vive à grande vitesse ; en marche arrière on tourne comme une voiture
                 local want = (left and 1.0 or 0.0) - (right and 1.0 or 0.0)
-                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 12.0), 0.0, 1.0)
+                steer = steer + (want - steer) * clamp(dt * (Config.SteerResponse or 10.0), 0.0, 1.0)
                 local heading = GetEntityHeading(veh)
                 if math.abs(steer) > 0.01 then
-                    local radius = (Config.MinRadius or 1.0) + speed * speed / (Config.Grip or 11.0)
-                    local carve = math.deg(speed / radius)                          -- °/s en roulant
-                    local pivot = Config.PivotRate or 80.0                          -- kick turn à l'arrêt
-                    local k = clamp(speed / 1.2, 0.0, 1.0)
-                    heading = (heading + steer * (pivot * (1.0 - k) + carve * k) * dt) % 360.0
+                    local rate = (Config.TurnRate or 90.0) * (1.0 - 0.45 * math.abs(speed) / MAX)
+                    heading = (heading + steer * rate * (speed < -0.1 and -1.0 or 1.0) * dt) % 360.0
                 end
-                -- skate FIXE : toujours à plat (aucun roulis, pas de balancement sur les bosses) ; seule la pente est suivie
-                if onGround then
-                    SetEntityRotation(veh, clamp(GetEntityPitch(veh), -25.0, 25.0), 0.0, heading, 2, true)
-                    SetEntityAngularVelocity(veh, 0.0, 0.0, 0.0)
-                else
-                    SetEntityHeading(veh, heading)
+                local r = math.rad(heading)
+                local dx, dy = -math.sin(r), math.cos(r)
+                -- avancer : trottoirs et petites bosses montés, vrai mur ou véhicule = arrêt net (sans tomber)
+                local move = speed * dt
+                if math.abs(move) > 0.0001 then
+                    local sx, sy = speed >= 0.0 and dx or -dx, speed >= 0.0 and dy or -dy
+                    local nx, ny = pos.x + dx * move, pos.y + dy * move
+                    local gz = groundAt(nx, ny, pos.z)
+                    if not gz or gz - pos.z > (Config.StepUp or 0.6)
+                        or wallAhead(veh, pos.x, pos.y, pos.z, sx, sy, 0.55 + math.abs(move)) then
+                        speed = 0.0
+                    else
+                        pos.x, pos.y = nx, ny
+                        if gz >= pos.z then
+                            pos.z, vz = pos.z + (gz - pos.z) * clamp(dt * 18.0, 0.0, 1.0), 0.0   -- monte en douceur
+                            if gz - pos.z < 0.01 then pos.z = gz end
+                        else
+                            vz = vz - 9.81 * dt                                                  -- descend (rebord, marche)
+                            pos.z = math.max(gz, pos.z + vz * dt)
+                            if pos.z == gz then vz = 0.0 end
+                        end
+                    end
                 end
-                f = GetEntityForwardVector(veh)
-                -- adhérence : la vitesse réelle rejoint l'axe de la planche (léger glissement si on tourne fort)
-                local tx, ty = f.x * speed, f.y * speed
-                local g = clamp(dt * (Config.Traction or 14.0), 0.0, 1.0)
-                vx, vy = vx + (tx - vx) * g, vy + (ty - vy) * g
-                SetEntityVelocity(veh, vx, vy, math.min(v.z, 2.0))
-                -- posture naturelle : le corps penche à peine dans le virage (la planche reste à plat)
-                local lean = -steer * (Config.Lean or 5.0) * clamp(speed / MAX + 0.2, 0.0, 1.0)
+                -- la planche suit la pente (lissée), toujours à plat sur les côtés
+                local zf, zb = groundAt(pos.x + dx * 0.4, pos.y + dy * 0.4, pos.z), groundAt(pos.x - dx * 0.4, pos.y - dy * 0.4, pos.z)
+                local want_p = (zf and zb) and clamp(math.deg(math.atan(zf - zb, 0.8)), -20.0, 20.0) or 0.0
+                pitch = pitch + (want_p - pitch) * clamp(dt * 8.0, 0.0, 1.0)
+                SetEntityCoordsNoOffset(veh, pos.x, pos.y, pos.z + board.h, false, false, false)
+                SetEntityRotation(veh, pitch, 0.0, heading, 2, true)
+                SetEntityVelocity(veh, dx * speed, dy * speed, 0.0)   -- mouvement fluide vu par les autres joueurs
+                -- le corps penche à peine dans le virage
+                local lean = -steer * (Config.Lean or 5.0) * clamp(math.abs(speed) / MAX + 0.2, 0.0, 1.0)
                 if math.abs(lean - lastLean) > 0.25 then
                     lastLean = lean
                     attachPed(ped, lean)
                 end
-                -- le regard suit la route (tête tournée vers là où va le skate)
+                -- le regard suit la route
                 if GetGameTimer() >= (board.lookAt or 0) then
                     board.lookAt = GetGameTimer() + 400
-                    local c = GetEntityCoords(veh)
                     local hr = math.rad(heading + steer * 25.0)
-                    TaskLookAtCoord(ped, c.x - math.sin(hr) * 12.0, c.y + math.cos(hr) * 12.0, c.z + 1.2, 1000, 2048, 2)
+                    TaskLookAtCoord(ped, pos.x - math.sin(hr) * 12.0, pos.y + math.cos(hr) * 12.0, pos.z + 1.6, 1000, 2048, 2)
                 end
-                -- recalage des pieds juste après être monté (l'animation a pris sa pose)
+                -- recalage des pieds juste après être monté (inchangé)
                 if board.fitted < 5 and GetGameTimer() - mountedAt > 300 + board.fitted * 200 then
                     board.fitted = board.fitted + 1
                     if fitFeet(ped) then attachPed(ped, lean) end
                 end
                 -- descendre
-                if IsDisabledControlJustPressed(0, K.mount) and GetGameTimer() - mountedAt > 400 then dismount(false) goto continue end
-                -- l'animation de glisse reste jouée
+                if IsDisabledControlJustPressed(0, K.mount) and GetGameTimer() - mountedAt > 400 then
+                    dismount(false)
+                    goto continue
+                end
                 local a = rideAnim()
                 if riding and a and not IsEntityPlayingAnim(ped, a.dict, a.name, 3) then playRide(ped) end
             end
@@ -327,7 +343,7 @@ CreateThread(function()
 end)
 
 -- Vitesse lisible par d'autres ressources (HUD…) : exports.elyzea_skate:GetSpeed() en km/h
-exports('GetSpeed', function() return riding and speed * 3.6 or 0.0 end)
+exports('GetSpeed', function() return riding and math.abs(speed) * 3.6 or 0.0 end)
 exports('IsRiding', function() return riding end)
 
 AddEventHandler('onResourceStop', function(res)
