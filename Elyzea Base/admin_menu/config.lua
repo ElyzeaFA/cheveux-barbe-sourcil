@@ -557,7 +557,7 @@ local P_ADMIN   = with(P_MODO, { 'staff_job', 'ban', 'unban', 'kill', 'spawn_veh
                                  'gofast_missions' })
 local P_SUPER   = with(P_ADMIN, { 'give_weapon', 'give_item', 'blackout', 'manage_staff', 'transform',
                                   'editor_spawns', 'editor_props', 'editor_peds', 'editor_harvest', 'editor_crafting', 'editor_zones', 'editor_doors',
-                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'lasergame_manage', 'animaux_manage', 'animaux_owned', 'clothing_manage', 'drugs_effects', 'drugs_manage', 'labs_manage', 'health_manage', 'presse_manage' })
+                                  'gofast_manage', 'event_zombies', 'ems_staff', 'police_staff', 'lscustom_staff', 'manage_map', 'concess_staff', 'vehicle_custom', 'permis_manage', 'farm_manage', 'fuel_manage', 'trunk_manage', 'drugsale_manage', 'guards', 'entreprises_staff', 'concessair_staff', 'view_debts', 'manage_respawn', 'manage_welcome', 'jobs_manage', 'editor_stashes', 'event_drops', 'property_manage', 'dealer_manage', 'agencies_manage', 'heist_manage', 'bankheist_manage', 'noirx_staff', 'famille_manage', 'casino_manage', 'pvp_manage', 'lasergame_manage', 'animaux_manage', 'animaux_owned', 'clothing_manage', 'drugs_effects', 'drugs_manage', 'labs_manage', 'health_manage', 'presse_manage', 'cachettes_manage' })
 
 Config.DefaultRanks = {
     support        = { label = 'Support',        level = 10,  color = '#4fb3a9', perms = P_SUPPORT },
@@ -782,7 +782,7 @@ Config.Editor = {
                                       { item = 'meth', min = 180, max = 240 }, { item = 'dried_mushroom', min = 45, max = 70 } },
                             maxPerSale = 50, cooldown = 600, policeChance = 35, minPolice = 2 } } },
         { id = 'tools', icon = '🧰', label = 'Vendeur d\'outils', scenario = 'WORLD_HUMAN_CLIPBOARD', name = 'Quincaillier',
-          npc = { payment = 'cash', shop = { items = { { item = 'lockpick', price = 150 }, { item = 'crowbar', price = 350 } } } } },
+          npc = { payment = 'cash', shop = { items = { { item = 'lockpick', price = 150 }, { item = 'crowbar', price = 350 }, { item = 'tournevis', price = 45 } } } } },
         { id = 'shop', icon = '🛒', label = 'Petit commerce', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeur',
           npc = { payment = 'cash', shop = { items = { { item = 'water', price = 5 }, { item = 'burger', price = 12 } } } } },
         { id = 'clothing', icon = '👕', label = 'Boutique de vêtements', scenario = 'WORLD_HUMAN_STAND_IMPATIENT', name = 'Vendeuse',

@@ -216,6 +216,11 @@ Items.bank_c4     = { label = 'Charge C4', weight = 1200, stack = true, max = 5,
 Items.bank_drill  = { label = 'Perceuse de coffre', weight = 3500, stack = false, image = 'bank_drill.png', icon = '🛠️',
     description = 'Perceuse thermique pour ouvrir les coffres individuels d\'une banque.' }
 
+-- ───────── Contrebande (ressource elyzea_cachettes) ─────────
+-- Nécessaire pour aménager / ouvrir une cachette dans un véhicule (ALT sur le véhicule). Jamais consommé.
+Items.tournevis = { label = 'Tournevis', weight = 150, stack = false, icon = '🪛',
+    description = 'Tournevis d\'atelier. Permet de démonter les garnitures d\'un véhicule (ALT sur le véhicule).' }
+
 -- ───────── Téléphones ElyAura 1 à 6 (elyzea_aura/config_phones.lua) ─────────
 -- « Utiliser » : ce téléphone devient celui du joueur (numéro, contacts et messages suivent le personnage).
 -- Images : html/img/elyaura_1.png … elyaura_6.png (256 × 256)
@@ -529,6 +534,7 @@ ImageAlias = {
     coca_paste = 'coke_small_brick.png', coca_refined = 'coke_brick.png', coke_premium = 'cocaine_baggy.png',
     drg_acid = 'hydrochloricacid.png', meth_crystal = 'meth_tray.png', meth_liquid = 'meth_tray.png',
     crowbar = 'WEAPON_CROWBAR.png', walking_stick = 'walkstick.png',
+    tournevis = 'screwdriverset.png',
     advancedrepairkit = 'repairkit.png', trojan_usb = 'usb_device.png',
     at_scope_macro = 'at_scope_small.png', at_compensator = 'at_muzzle_tactical.png',
 }

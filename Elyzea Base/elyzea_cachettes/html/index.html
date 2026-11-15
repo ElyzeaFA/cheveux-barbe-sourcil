@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Elyzea · Cachettes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Choix de l'emplacement -->
+    <div id="picker" class="card hidden">
+        <header>
+            <div class="mark">✦</div>
+            <div>
+                <h1 id="pkTitle">Cachettes</h1>
+                <p id="pkSub" class="sub"></p>
+            </div>
+            <button class="x" data-close>✕</button>
+        </header>
+        <div id="pkList" class="list"></div>
+        <footer><span class="keycap">Échap</span> fermer</footer>
+    </div>
+
+    <!-- Mini-jeu -->
+    <div id="game" class="card wide hidden">
+        <header>
+            <div class="mark">🪛</div>
+            <div>
+                <h1 id="gTitle"></h1>
+                <p id="gSub" class="sub"></p>
+            </div>
+            <div class="timer"><span id="gTime">0:00</span><small id="gLimit"></small></div>
+        </header>
+        <div class="steps" id="gSteps"></div>
+        <p class="hint" id="gHint"></p>
+        <div class="stage">
+            <canvas id="cv" width="760" height="420"></canvas>
+            <div id="gCard" class="overlay hidden"><div><b id="gCardT"></b><span id="gCardS"></span></div></div>
+            <div id="gToast" class="toast hidden"></div>
+        </div>
+        <footer>
+            <div class="errors">Erreurs <span id="gErr"></span></div>
+            <div class="pbar"><i id="gProg"></i></div>
+            <div><span class="keycap">Échap</span> annuler</div>
+        </footer>
+    </div>
+
+    <script src="games.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

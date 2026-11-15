@@ -14,6 +14,7 @@
 --  Animations (elyzea_animations) : copier l'animation d'une personne, lui proposer une animation à deux.
 --  Bébé (elyzea_bebe_modele) : prendre, poser, changer de prise, installer dans la poussette, pousser, garer.
 --  Journaliste en service (elyzea_presse) : proposer une interview ou une annonce payante.
+--  Cachettes (elyzea_cachettes) : avec un tournevis, cacher un objet de contrebande ; police : inspecter le véhicule, démonter un emplacement.
 --  Le menu reste ouvert après avoir lâché ALT ; Échap ou clic à côté pour le fermer.
 -- =====================================================================
 local C = PoliceC
@@ -67,6 +68,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_tv', prefix = 'tv:', target = true },          -- télés à écran plat : télécommande YouTube, pause, volume, éteindre
     { res = 'elyzea_clothing', prefix = 'clo:', target = true },   -- chapeau / lunettes tombés au sol : ramasser, casser les lunettes
     { res = 'elyzea_clothing', prefix = 'sac:' },                  -- sacs de shopping : ranger / reprendre dans le coffre, offrir à quelqu'un
+    { res = 'elyzea_cachettes', prefix = 'cach:' },                -- cachettes de contrebande (tournevis) ; police : inspecter, démonter un emplacement
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre

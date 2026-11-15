@@ -11,6 +11,8 @@ PolicePerms = {
     { key = 'vehicle',        group = 'Terrain',    label = 'Mettre / sortir une personne d\'un véhicule' },
     { key = 'fine',           group = 'Terrain',    label = 'Mettre des amendes' },
     { key = 'impound',        group = 'Terrain',    label = 'Mettre un véhicule en fourrière' },
+    { key = 'veh_inspect',    group = 'Terrain',    label = 'Inspecter un véhicule (anomalies, cachettes suspectes)' },
+    { key = 'veh_cachettes',  group = 'Terrain',    label = 'Démonter un emplacement de véhicule et saisir le contenu d\'une cachette' },
     -- Alertes
     { key = 'alerts_receive', group = 'Alertes',    label = 'Recevoir les alertes' },
     { key = 'alert_agent',    group = 'Alertes',    label = 'Déclencher une alerte agent' },
