@@ -571,6 +571,9 @@ local Detected = nil
 local function Base(u) u = trim(u or '', 200) if u == '' then return nil end if not u:match('^https?://') then u = 'http://' .. u end return (u:gsub('/+$', '')) end
 local function PageOf(base) return base .. '/' .. GetCurrentResourceName() .. '/import' end
 local function ImportUrl()
+    -- page publique hébergée ailleurs (ex. GitHub Pages) : c'est elle qu'on donne aux joueurs
+    local page = trim(IMP.Page or '', 200)
+    if page ~= '' then return page end
     local b = Base(IMP.Url)
     if b then return PageOf(b) end
     return Detected and PageOf(Detected) or nil
@@ -647,11 +650,14 @@ EF_('efImportCode', function(src, me)
 end)
 
 -- Traitement des requêtes de la page d'import ; renvoie (code HTTP, réponse)
+local GlobalFails = { n = 0, t = 0 }
 local function ImportRequest(path, ip, body)
     ip = tostring(ip or ''):gsub(':%d+$', '')
     local now = os.time()
     local f = Fails[ip]
     if f and f.n >= 8 and now - f.t < 600 then return 429, { ok = false, error = 'Trop d\'essais. Réessaie dans quelques minutes.' } end
+    if now - GlobalFails.t >= 600 then GlobalFails = { n = 0, t = now } end
+    if GlobalFails.n >= 300 then return 429, { ok = false, error = 'Trop d\'essais. Réessaie dans quelques minutes.' } end
     local ok, d = pcall(json.decode, body or '')
     if not ok or type(d) ~= 'table' then return 400, { ok = false, error = 'Requête invalide' } end
     CleanCodes()
@@ -659,6 +665,7 @@ local function ImportRequest(path, ip, body)
     local c = Codes[code]
     if not c then
         Fails[ip] = { n = (f and now - f.t < 600 and f.n or 0) + 1, t = now }
+        GlobalFails.n = GlobalFails.n + 1
         return 403, { ok = false, error = 'Code invalide ou expiré : demande un nouveau code dans ElyFy (Mes titres > Depuis mon ordinateur).' }
     end
     if path == '/import/check' then return 200, { ok = true, artist = c.artist, maxMb = int(IMP.MaxMB, 15) } end
@@ -699,11 +706,22 @@ local function ImportRequest(path, ip, body)
 end
 ElyFyImportRequest = ImportRequest   -- pour les tests hors jeu
 
+-- La page peut être hébergée ailleurs (GitHub Pages…) : réponses autorisées pour tous les sites (CORS).
+-- Rien de secret ici : chaque action demande un code à usage limité, donné par le téléphone du joueur.
+local CORS = { ['Access-Control-Allow-Origin'] = '*', ['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS', ['Access-Control-Allow-Headers'] = 'Content-Type', ['Access-Control-Max-Age'] = '600' }
+local function H(t) for k, v in pairs(CORS) do t[k] = v end return t end
+-- Adresse du visiteur (derrière le relais cfx.re : X-Forwarded-For)
+local function ClientIp(req)
+    local h = req.headers or {}
+    local xff = h['X-Forwarded-For'] or h['x-forwarded-for']
+    return (type(xff) == 'string' and xff:match('^%s*([^,%s]+)')) or req.address
+end
 SetHttpHandler(function(req, res)
     local path = tostring(req.path or '/'):gsub('%?.*$', ''):gsub('/+$', '')
     if path == '' then path = '/' end
+    if req.method == 'OPTIONS' then res.writeHead(204, H({})) res.send('') return end
     if req.method == 'GET' and path == '/import/ping' then
-        res.writeHead(200, { ['Content-Type'] = 'text/plain', ['Access-Control-Allow-Origin'] = '*' })
+        res.writeHead(200, H({ ['Content-Type'] = 'text/plain' }))
         res.send('elyfy-ok')
         return
     end
@@ -715,9 +733,9 @@ SetHttpHandler(function(req, res)
     if req.method == 'POST' and (path == '/import/check' or path == '/import/start' or path == '/import/finish') then
         req.setDataHandler(function(body)
             CreateThread(function()
-                local ok, code, out = pcall(ImportRequest, path, req.address, body)
+                local ok, code, out = pcall(ImportRequest, path, ClientIp(req), body)
                 if not ok then print('^1[elyzea_aura] ElyFy (import) : ' .. tostring(code) .. '^0') code, out = 500, { ok = false, error = 'Erreur du serveur' } end
-                res.writeHead(code, { ['Content-Type'] = 'application/json; charset=utf-8', ['Cache-Control'] = 'no-store' })
+                res.writeHead(code, H({ ['Content-Type'] = 'application/json; charset=utf-8', ['Cache-Control'] = 'no-store' }))
                 res.send(json.encode(out))
             end)
         end)

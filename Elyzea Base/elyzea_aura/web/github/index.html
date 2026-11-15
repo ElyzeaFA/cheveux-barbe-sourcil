@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ElyFy · Importer ma musique</title>
+<style>
+  :root { --bg: #0D0A1A; --card: #17122B; --line: rgba(255,255,255,.09); --text: #F2EEFF; --dim: rgba(242,238,255,.6); --a: #B57BFF; --b: #6B2FF7; --ok: #3EE6B0; --err: #FF6B7A; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; background: radial-gradient(1200px 600px at 20% -10%, rgba(181,123,255,.25), transparent 60%), radial-gradient(900px 500px at 110% 110%, rgba(107,47,247,.22), transparent 60%), var(--bg);
+    color: var(--text); font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: grid; place-items: center; padding: 24px 16px; }
+  .card { width: 100%; max-width: 480px; background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 28px; box-shadow: 0 30px 80px -30px rgba(0,0,0,.7); }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .logo { width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, var(--a), #2A0F5E); display: grid; place-items: center; }
+  .logo svg { width: 26px; height: 26px; }
+  .brand b { font-size: 24px; letter-spacing: -.6px; } .brand b span { color: var(--a); }
+  .brand small { display: block; color: var(--dim); font-size: 13px; }
+  h1 { font-size: 20px; letter-spacing: -.4px; margin-bottom: 6px; }
+  p.sub { color: var(--dim); font-size: 14px; margin-bottom: 18px; }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); margin: 16px 2px 7px; }
+  input[type=text] { width: 100%; height: 48px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text); font: inherit; font-size: 16px; padding: 0 16px; outline: none; transition: border-color .2s; }
+  input[type=text]:focus { border-color: var(--a); }
+  #code { text-transform: uppercase; letter-spacing: 8px; font-weight: 800; font-size: 24px; text-align: center; font-family: ui-monospace, monospace; }
+  .btn { width: 100%; height: 52px; border: 0; border-radius: 26px; margin-top: 20px; background: linear-gradient(135deg, var(--a), var(--b)); color: #fff; font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; box-shadow: 0 10px 26px rgba(107,47,247,.35); transition: opacity .2s, transform .15s; }
+  .btn:disabled { opacity: .4; cursor: default; box-shadow: none; }
+  .btn:active:not(:disabled) { transform: scale(.98); }
+  .drop { margin-top: 6px; border: 2px dashed rgba(181,123,255,.4); border-radius: 18px; padding: 26px 16px; text-align: center; cursor: pointer; transition: all .2s; background: rgba(181,123,255,.04); }
+  .drop:hover, .drop.over { border-color: var(--a); background: rgba(181,123,255,.1); }
+  .drop svg { width: 34px; height: 34px; color: var(--a); }
+  .drop b { display: block; margin-top: 6px; } .drop small { color: var(--dim); }
+  .file { display: none; align-items: center; gap: 12px; margin-top: 6px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid var(--line); }
+  .file.on { display: flex; }
+  .file .ic { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, var(--a), var(--b)); display: grid; place-items: center; flex: none; }
+  .file .ic svg { width: 22px; height: 22px; }
+  .file span { flex: 1; min-width: 0; } .file b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .file small { color: var(--dim); }
+  .file button { background: none; border: 0; color: var(--dim); font-size: 22px; cursor: pointer; }
+  .check { display: flex; align-items: center; gap: 12px; margin-top: 18px; cursor: pointer; text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+  .check input { width: 20px; height: 20px; accent-color: var(--a); }
+  .check small { display: block; color: var(--dim); font-weight: 400; font-size: 12.5px; }
+  .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin-top: 18px; display: none; }
+  .bar.on { display: block; } .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--a), var(--b)); transition: width .2s; }
+  .msg { margin-top: 14px; font-size: 14px; min-height: 20px; } .msg.err { color: var(--err); } .msg.ok { color: var(--ok); }
+  .who { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 14px; background: rgba(62,230,176,.1); color: var(--ok); font-size: 14px; font-weight: 600; }
+  .who.on { display: block; }
+  .done { text-align: center; display: none; }
+  .done.on { display: block; }
+  .done .big { width: 76px; height: 76px; border-radius: 50%; margin: 6px auto 16px; background: linear-gradient(135deg, var(--ok), #19A97B); display: grid; place-items: center; }
+  .done .big svg { width: 40px; height: 40px; }
+  .steps { display: flex; gap: 6px; margin-bottom: 20px; } .steps i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); } .steps i.on { background: var(--a); }
+  .hide { display: none !important; }
+  .down { display: none; margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255,107,122,.12); color: var(--err); font-size: 14px; font-weight: 600; }
+  .down.on { display: block; }
+  footer { margin-top: 20px; color: var(--dim); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M7.5 9.5c3-1 6.5-.8 9.5.8M8.2 12.6c2.5-.7 5.2-.5 7.6.7M9 15.5c1.8-.4 3.7-.3 5.4.5"/></svg></span>
+    <div><b>Ely<span>Fy</span></b><small>Importer ma musique dans le téléphone</small></div></div>
+
+  <div class="down" id="down"></div>
+  <section id="s1">
+    <div class="steps"><i class="on"></i><i></i></div>
+    <h1>Ton code ElyFy</h1>
+    <p class="sub">Dans le jeu : téléphone &gt; ElyFy &gt; <b>Mes titres</b> &gt; <b>Depuis mon ordinateur</b>. Recopie le code affiché.</p>
+    <input type="text" id="code" maxlength="12" autocomplete="off" spellcheck="false" placeholder="······">
+    <button class="btn" id="go1" disabled>Continuer</button>
+    <p class="msg" id="m1"></p>
+  </section>
+
+  <section id="s2" class="hide">
+    <div class="steps"><i class="on"></i><i class="on"></i></div>
+    <h1>Choisis ton morceau</h1>
+    <div class="who" id="who"></div>
+    <label>Fichier audio</label>
+    <div class="drop" id="drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>
+      <b>Glisse ton fichier ici</b><small>ou clique pour le choisir · MP3, M4A, OGG, WAV · <span id="max">15</span> Mo max</small></div>
+    <input type="file" id="file" accept="audio/*" class="hide">
+    <div class="file" id="fbox"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M9 18V5.5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16.5" r="3"/></svg></span>
+      <span><b id="fname"></b><small id="fsize"></small></span><button id="frm" title="Retirer">×</button></div>
+    <label>Titre</label>
+    <input type="text" id="title" maxlength="80" placeholder="Titre du morceau">
+    <label class="check"><input type="checkbox" id="pub"><span>Publier pour toute la ville<small>Sinon, le titre reste privé dans ta bibliothèque (tu pourras le publier plus tard).</small></span></label>
+    <div class="bar" id="bar"><i id="barv"></i></div>
+    <button class="btn" id="go2" disabled>Envoyer dans mon téléphone</button>
+    <p class="msg" id="m2"></p>
+  </section>
+
+  <section class="done" id="s3">
+    <div class="big"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
+    <h1>C'est dans ton téléphone !</h1>
+    <p class="sub" id="donet"></p>
+    <button class="btn" id="again">Importer un autre morceau</button>
+  </section>
+  <footer>Le fichier est envoyé directement à l'hébergeur du serveur. Importe seulement de la musique que tu as le droit de partager.</footer>
+</main>
+<script>
+/* =====================================================================
+   RÉGLAGE : adresse HTTPS de ton serveur FiveM (sans / à la fin).
+   Elle s'affiche dans la console du serveur au démarrage, ligne « cfx.re Nucleus » :
+   https://pseudo-abc123.users.cfx.re
+   Laisse '' si cette page est servie par le serveur lui-même (…/elyzea_aura/import).
+   ===================================================================== */
+const SERVER = 'https://TON-SERVEUR.users.cfx.re';
+const RESOURCE = 'elyzea_aura';
+(() => {
+  const $ = (s) => document.getElementById(s);
+  const srv = (new URLSearchParams(location.search).get('s') || SERVER || '').trim().replace(/\/+$/, '');
+  const base = srv ? srv + '/' + RESOURCE + '/import' : location.pathname.replace(/\/+$/, '').replace(/\/index\.html$/, '');
+  let code = '', file = null, maxMb = 15;
+  const post = async (path, data) => {
+    try {
+      const r = await fetch(base + '/' + path, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(data) });
+      return await r.json();
+    } catch (e) { return { ok: false, error: 'Serveur injoignable. Réessaie.' }; }
+  };
+  const msg = (el, text, kind) => { el.textContent = text || ''; el.className = 'msg ' + (kind || ''); };
+  const fmt = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' Mo' : Math.round(n / 1024) + ' Ko';
+  // Le serveur du jeu répond-il ?
+  {
+    if (/TON-SERVEUR/.test(srv)) { $('down').textContent = 'Site pas encore configuré : le propriétaire doit mettre l\'adresse de son serveur dans index.html (SERVER).'; $('down').classList.add('on'); }
+    else fetch(base + '/ping').then(r => r.text()).then(t => { if (t.indexOf('elyfy-ok') < 0) throw 0; })
+      .catch(() => { $('down').textContent = 'Le serveur du jeu ne répond pas pour le moment (éteint ou adresse incorrecte). Réessaie plus tard.'; $('down').classList.add('on'); });
+  }
+  const pre = new URLSearchParams(location.search).get('code');
+  if (pre) $('code').value = pre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  const upd1 = () => { $('code').value = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); $('go1').disabled = $('code').value.length !== 6; };
+  $('code').oninput = upd1; upd1();
+  $('code').onkeydown = (e) => { if (e.key === 'Enter' && !$('go1').disabled) $('go1').click(); };
+  $('go1').onclick = async () => {
+    $('go1').disabled = true; msg($('m1'), 'Vérification…');
+    const r = await post('check', { code: $('code').value });
+    $('go1').disabled = false;
+    if (!r.ok) return msg($('m1'), r.error, 'err');
+    code = $('code').value; maxMb = r.maxMb || 15; $('max').textContent = maxMb;
+    $('who').textContent = 'Connecté en tant que ' + r.artist; $('who').classList.add('on');
+    $('s1').classList.add('hide'); $('s2').classList.remove('hide');
+  };
+  const upd2 = () => { $('go2').disabled = !file || !$('title').value.trim(); };
+  const pick = (f) => {
+    msg($('m2'), '');
+    if (!f) return;
+    if (!/^audio\//.test(f.type)) return msg($('m2'), 'Ce fichier n\'est pas un fichier audio.', 'err');
+    if (f.size > maxMb * 1048576) return msg($('m2'), 'Fichier trop lourd (' + maxMb + ' Mo maximum).', 'err');
+    file = f;
+    $('fname').textContent = f.name; $('fsize').textContent = fmt(f.size);
+    $('fbox').classList.add('on'); $('drop').classList.add('hide');
+    if (!$('title').value.trim()) $('title').value = f.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').slice(0, 80);
+    upd2();
+  };
+  $('drop').onclick = () => $('file').click();
+  $('file').onchange = () => pick($('file').files[0]);
+  ['dragenter', 'dragover'].forEach(ev => $('drop').addEventListener(ev, (e) => { e.preventDefault(); $('drop').classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => $('drop').addEventListener(ev, (e) => { e.preventDefault(); $('drop').classList.remove('over'); }));
+  $('drop').addEventListener('drop', (e) => pick(e.dataTransfer.files[0]));
+  $('frm').onclick = () => { file = null; $('file').value = ''; $('fbox').classList.remove('on'); $('drop').classList.remove('hide'); upd2(); };
+  $('title').oninput = upd2;
+  $('go2').onclick = async () => {
+    const title = $('title').value.trim();
+    $('go2').disabled = true; msg($('m2'), 'Préparation de l\'envoi…');
+    const s = await post('start', { code, size: file.size, type: file.type });
+    if (!s.ok) { $('go2').disabled = false; return msg($('m2'), s.error, 'err'); }
+    msg($('m2'), 'Envoi du fichier…'); $('bar').classList.add('on');
+    const url = await new Promise((resolve) => {
+      const x = new XMLHttpRequest();
+      x.open('POST', s.uploadUrl);
+      x.upload.onprogress = (e) => { if (e.lengthComputable) $('barv').style.width = Math.round(e.loaded / e.total * 100) + '%'; };
+      x.onload = () => { let b = {}; try { b = JSON.parse(x.responseText); } catch (e) { /* vide */ } resolve(x.status < 300 ? (b.url || (b.data && b.data.url)) : null); };
+      x.onerror = () => resolve(null);
+      const fd = new FormData(); fd.append('file', file, file.name);
+      x.send(fd);
+    });
+    if (!url) { $('go2').disabled = false; $('bar').classList.remove('on'); return msg($('m2'), 'L\'envoi a échoué. Réessaie (un nouveau code peut être nécessaire).', 'err'); }
+    msg($('m2'), 'Ajout dans ton téléphone…');
+    const f = await post('finish', { code, url, title, public: $('pub').checked });
+    if (!f.ok) { $('go2').disabled = false; return msg($('m2'), f.error, 'err'); }
+    $('donet').textContent = '« ' + title + ' » est dans ElyFy > Mes titres' + ($('pub').checked ? ', et publié pour toute la ville.' : '.');
+    $('s2').classList.add('hide'); $('s3').classList.add('on');
+  };
+  $('again').onclick = () => {
+    $('frm').click(); $('title').value = ''; $('pub').checked = false; $('bar').classList.remove('on'); $('barv').style.width = '0';
+    msg($('m2'), ''); $('s3').classList.remove('on'); $('s2').classList.remove('hide');
+  };
+})();
+</script>
+</body>
+</html>

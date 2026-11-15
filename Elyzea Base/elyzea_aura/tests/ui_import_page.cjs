@@ -10,13 +10,21 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1100, height: 900 } });
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-  const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'elyfy_import.html'), 'utf8');
+  // MODE=github : site hébergé ailleurs (GitHub Pages, https) qui appelle le serveur du jeu (autre domaine)
+  const GH = process.env.MODE === 'github';
+  let html = fs.readFileSync(path.join(__dirname, '..', 'web', GH ? 'github/index.html' : 'elyfy_import.html'), 'utf8');
+  if (GH) html = html.replace("https://TON-SERVEUR.users.cfx.re", "https://srv.test");
+  const SRV = GH ? 'https://srv.test' : 'http://srv.test';
+  if (GH) await p.route('https://pseudo.github.io/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: html }));
   const calls = [];
-  await p.route('http://srv.test/**', async (r) => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' };
+  await p.route(SRV + '/**', async (r) => {
     const u = new URL(r.request().url());
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors, body: '' });
+    if (u.pathname.endsWith('/ping')) return r.fulfill({ status: 200, contentType: 'text/plain', headers: cors, body: 'elyfy-ok' });
     if (r.request().method() === 'GET') return r.fulfill({ status: 200, contentType: 'text/html', body: html });
     const d = JSON.parse(r.request().postData() || '{}'); calls.push([u.pathname, d]);
-    const j = (s, o) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(o) });
+    const j = (s, o) => r.fulfill({ status: s, contentType: 'application/json', headers: cors, body: JSON.stringify(o) });
     if (d.code !== 'K7P2QD') return j(403, { ok: false, error: 'Code invalide ou expiré.' });
     if (u.pathname.endsWith('/check')) return j(200, { ok: true, artist: 'Léna D.', maxMb: 15 });
     if (u.pathname.endsWith('/start')) return j(200, { ok: true, uploadUrl: 'https://upload.test/once' });
@@ -24,8 +32,10 @@ const check = (c, l) => { console.log(`  ${c ? 'ok  ' : 'ÉCHEC'} ${l}`); if (!c
   });
   let uploaded = 0;
   await p.route('https://upload.test/**', (r) => { uploaded = (r.request().postDataBuffer() || []).length; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ data: { url: 'https://r2.fivemanage.com/x/mon_son.mp3' } }) }); });
-  await p.goto('http://srv.test/elyzea_aura/import');
-  const shot = (n) => p.screenshot({ path: path.join(out, `import_${n}.png`) });
+  await p.goto(GH ? 'https://pseudo.github.io/elyfy/' : 'http://srv.test/elyzea_aura/import');
+  await p.waitForTimeout(300);
+  check(!(await p.isVisible('#down')), 'serveur du jeu joignable (pas de bandeau rouge)');
+  const shot = (n) => p.screenshot({ path: path.join(out, `import_${GH ? 'gh_' : ''}${n}.png`) });
   check(await p.$eval('#go1', x => x.disabled), 'code incomplet : bouton désactivé');
   await p.fill('#code', 'zzzzzz'); await p.click('#go1'); await p.waitForTimeout(300);
   check((await p.textContent('#m1')).includes('invalide'), 'mauvais code : message');

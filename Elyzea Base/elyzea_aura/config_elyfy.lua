@@ -33,6 +33,9 @@ Config.ElyFy = {
         -- puis http://IP_PUBLIQUE:PORT et garde celle qui répond (voir la console ; commande console : elyfy_import).
         -- Exemples : 'https://monserveur-abc123.users.cfx.re'  ou  'http://123.45.67.89:30120'
         Url = '',
+        -- Page d'import hébergée ailleurs (ex. GitHub Pages : 'https://pseudo.github.io/elyfy/'). Vide = page servie par ce serveur.
+        -- Dans le index.html de cette page, mets SERVER = l'adresse https de ton serveur (https://xxxx.users.cfx.re).
+        Page = '',
         MaxMB = 15,          -- taille maximale d'un fichier
         CodeMinutes = 15,    -- durée de validité d'un code
     },

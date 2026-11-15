@@ -48,6 +48,8 @@
   .done .big svg { width: 40px; height: 40px; }
   .steps { display: flex; gap: 6px; margin-bottom: 20px; } .steps i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); } .steps i.on { background: var(--a); }
   .hide { display: none !important; }
+  .down { display: none; margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255,107,122,.12); color: var(--err); font-size: 14px; font-weight: 600; }
+  .down.on { display: block; }
   footer { margin-top: 20px; color: var(--dim); font-size: 12px; text-align: center; }
 </style>
 </head>
@@ -56,6 +58,7 @@
   <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M7.5 9.5c3-1 6.5-.8 9.5.8M8.2 12.6c2.5-.7 5.2-.5 7.6.7M9 15.5c1.8-.4 3.7-.3 5.4.5"/></svg></span>
     <div><b>Ely<span>Fy</span></b><small>Importer ma musique dans le téléphone</small></div></div>
 
+  <div class="down" id="down"></div>
   <section id="s1">
     <div class="steps"><i class="on"></i><i></i></div>
     <h1>Ton code ElyFy</h1>
@@ -92,18 +95,33 @@
   <footer>Le fichier est envoyé directement à l'hébergeur du serveur. Importe seulement de la musique que tu as le droit de partager.</footer>
 </main>
 <script>
+/* =====================================================================
+   RÉGLAGE : adresse HTTPS de ton serveur FiveM (sans / à la fin).
+   Elle s'affiche dans la console du serveur au démarrage, ligne « cfx.re Nucleus » :
+   https://pseudo-abc123.users.cfx.re
+   Laisse '' si cette page est servie par le serveur lui-même (…/elyzea_aura/import).
+   ===================================================================== */
+const SERVER = '';
+const RESOURCE = 'elyzea_aura';
 (() => {
   const $ = (s) => document.getElementById(s);
-  const base = location.pathname.replace(/\/+$/, '');
+  const srv = (new URLSearchParams(location.search).get('s') || SERVER || '').trim().replace(/\/+$/, '');
+  const base = srv ? srv + '/' + RESOURCE + '/import' : location.pathname.replace(/\/+$/, '').replace(/\/index\.html$/, '');
   let code = '', file = null, maxMb = 15;
   const post = async (path, data) => {
     try {
-      const r = await fetch(base + '/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const r = await fetch(base + '/' + path, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(data) });
       return await r.json();
     } catch (e) { return { ok: false, error: 'Serveur injoignable. Réessaie.' }; }
   };
   const msg = (el, text, kind) => { el.textContent = text || ''; el.className = 'msg ' + (kind || ''); };
   const fmt = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' Mo' : Math.round(n / 1024) + ' Ko';
+  // Le serveur du jeu répond-il ?
+  {
+    if (/TON-SERVEUR/.test(srv)) { $('down').textContent = 'Site pas encore configuré : le propriétaire doit mettre l\'adresse de son serveur dans index.html (SERVER).'; $('down').classList.add('on'); }
+    else fetch(base + '/ping').then(r => r.text()).then(t => { if (t.indexOf('elyfy-ok') < 0) throw 0; })
+      .catch(() => { $('down').textContent = 'Le serveur du jeu ne répond pas pour le moment (éteint ou adresse incorrecte). Réessaie plus tard.'; $('down').classList.add('on'); });
+  }
   const pre = new URLSearchParams(location.search).get('code');
   if (pre) $('code').value = pre.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   const upd1 = () => { $('code').value = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); $('go1').disabled = $('code').value.length !== 6; };

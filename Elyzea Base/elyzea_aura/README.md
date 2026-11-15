@@ -109,6 +109,9 @@ Directement dans le téléphone (tables `elyzea_ef_*` créées au démarrage). R
     ton serveur (`https://<ton-serveur>.users.cfx.re/elyzea_aura/import`). Le joueur l'ouvre dans le navigateur de son PC, tape le code,
     choisit son fichier (MP3, M4A, OGG, WAV, 15 Mo max) : le fichier part directement sur Fivemanage (lien d'envoi à usage unique,
     la clé reste sur le serveur) et le titre arrive aussitôt dans son téléphone. 8 codes faux d'une même adresse = blocage 10 min.
+  - **Site sur GitHub Pages** (facultatif) : `web/github/index.html`. Mets l'adresse https de ton serveur dans `SERVER` (en haut du fichier,
+    ligne « cfx.re Nucleus » de la console : `https://pseudo-abc123.users.cfx.re`), pousse-le sur GitHub Pages, puis mets l'adresse du
+    site dans `Config.ElyFy.Import.Page`. Le téléphone donne alors cette adresse. Le site appelle le serveur du jeu (CORS autorisé).
   - **Avec un lien** : coller le lien d'un fichier audio déjà en ligne (hébergeurs de `Config.ElyFy.UploadHosts`).
   - Adresse de la page : trouvée au démarrage (adresse cfx.re, sinon `http://IP_PUBLIQUE:PORT`), le serveur garde celle qui répond.
     La console affiche « page d'import joignable : … » ; commande console `elyfy_import` pour la revoir. Si la page ne s'ouvre pas
