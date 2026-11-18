@@ -67,6 +67,7 @@ Illegal.Permissions = {
     { key = 'orders_validate', label = 'Valider / refuser les commandes',  cat = 'Commandes' },
     { key = 'stash',           label = 'Accès au coffre du groupe',        cat = 'Coffre' },
     { key = 'missions_start',  label = 'Lancer une mission illégale',      cat = 'Missions' },
+    { key = 'k9',              label = 'Avoir un chien du groupe (K9)',    cat = 'Chiens' },
     { key = 'settings',        label = 'Paramètres du groupe',             cat = 'Configuration' },
 }
 

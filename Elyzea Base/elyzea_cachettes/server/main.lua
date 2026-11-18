@@ -574,6 +574,21 @@ exports('TransferCachettes', function(oldId, newId)
     Rows[oldId], Rows[newId] = nil, nil
     return true
 end)
+-- Contenu des cachettes actives d'un véhicule, par plaque (lecture seule ; ex. chien de détection K9, elyzea_k9)
+-- → { { slot, label, items = { { name, count }, … } }, … }
+exports('GetVehicleHiddenItems', function(plate)
+    local vehId = Cach.VehicleId(plate)
+    local out = {}
+    if not vehId then return out end
+    for slot, r in pairs(Cach.LoadRows(vehId)) do
+        if r.state == 1 and Slots[slot] then
+            Cach.EnsureStash(vehId, slot)
+            local ok, items = pcall(function() return inv:GetStashItems(Cach.StashId(vehId, slot)) end)
+            out[#out + 1] = { slot = slot, label = Slots[slot].label, items = ok and type(items) == 'table' and items or {} }
+        end
+    end
+    return out
+end)
 exports('GetVehicleCachettes', function(vehId)
     local out = {}
     for slot, r in pairs(Cach.LoadRows(tonumber(vehId) or -1)) do

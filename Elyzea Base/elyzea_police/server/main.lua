@@ -235,7 +235,7 @@ end
 
 -- Permissions ajoutées après l'installation : si aucun grade ne l'a encore, elle est donnée
 -- aux grades dont le grade par défaut de même niveau l'a dans la config, et au plus haut grade
-local NEW_PERMS = { 'finance', 'search', 'wanted_view', 'wanted_manage', 'impound', 'veh_inspect', 'veh_cachettes' }
+local NEW_PERMS = { 'finance', 'search', 'wanted_view', 'wanted_manage', 'impound', 'veh_inspect', 'veh_cachettes', 'k9' }
 function P.GrantNewPerms(job)
     if not job then
         for _, a in ipairs(P.agencyList) do P.GrantNewPerms(a.job) end

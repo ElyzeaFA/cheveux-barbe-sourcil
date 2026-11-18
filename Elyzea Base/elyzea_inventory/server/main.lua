@@ -1476,6 +1476,21 @@ function API.GetStashItems(id)
     return out
 end
 
+-- Objets au sol dans un rayon (lecture seule ; ex. recherche de stupéfiants du chien K9, elyzea_k9)
+-- → { { drop, coords = vector3, name, count }, … }
+function API.GetDropsInRadius(coords, radius)
+    local out = {}
+    if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return out end
+    local c = vector3(tonumber(coords.x) or 0.0, tonumber(coords.y) or 0.0, tonumber(coords.z) or 0.0)
+    radius = math.min(tonumber(radius) or 10.0, 100.0)
+    for id, d in pairs(Drops) do
+        if #(c - d.coords) <= radius then
+            for _, it in ipairs(d.items) do out[#out + 1] = { drop = id, coords = d.coords, name = it.name, count = it.count } end
+        end
+    end
+    return out
+end
+
 for name, fn in pairs(API) do exports(name, fn) end
 
 -- Prévient les ressources qu'elles peuvent enregistrer leurs objets utilisables

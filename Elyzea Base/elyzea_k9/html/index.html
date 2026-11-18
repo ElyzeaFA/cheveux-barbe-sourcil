@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- Elyzea K9 : menu du chien (police / gangs), choix de la race avec aperçu réel, dressage, ordres ; affichages du ciblage et des exercices -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,600;0,700;1,600;1,700;1,800;1,900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="brand.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="menu" class="panel center hidden">
+    <header>
+        <div class="hd"><span class="logo" id="logo">🐕</span><div><h1 id="title">Unité cynophile</h1><span id="sub"></span></div></div>
+        <div class="hd-r"><div id="sides" class="sides"></div><button class="x" data-close aria-label="Fermer">✕</button></div>
+    </header>
+    <nav id="tabs"></nav>
+    <main id="body"></main>
+</div>
+
+<div id="target" class="hidden">
+    <div class="tg-order"><button class="tg-arrow">◄</button><span><small>Ordre</small><b id="tgOrder"></b></span><button class="tg-arrow">►</button></div>
+    <div class="tg-who"><span class="tg-dot"></span><div><b id="tgName"></b><small id="tgInfo"></small></div><span class="tg-warn hidden" id="tgWarn"></span></div>
+    <div class="tg-keys"><span><kbd>Molette</kbd> personne</span><span><kbd>◄ ►</kbd> ordre</span><span><kbd>E</kbd> confirmer</span><span><kbd>Échap</kbd> annuler</span></div>
+</div>
+
+<div id="hud" class="hidden">
+    <b id="hudTitle"></b><p id="hudText"></p>
+    <div class="bar" id="hudBarWrap"><i id="hudBar"></i></div>
+    <small id="hudExtra"></small><small id="hudAbort" class="abort"></small>
+</div>
+
+<div id="modal" class="hidden"><div class="box"><h2 id="mTitle"></h2><p id="mText"></p><div class="btns"><button id="mNo">Annuler</button><button id="mYes" class="primary">Confirmer</button></div></div></div>
+<script src="app.js"></script>
+</body>
+</html>

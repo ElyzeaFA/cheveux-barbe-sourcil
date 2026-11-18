@@ -69,6 +69,7 @@ local ALT_PROVIDERS = {
     { res = 'elyzea_clothing', prefix = 'clo:', target = true },   -- chapeau / lunettes tombés au sol : ramasser, casser les lunettes
     { res = 'elyzea_clothing', prefix = 'sac:' },                  -- sacs de shopping : ranger / reprendre dans le coffre, offrir à quelqu'un
     { res = 'elyzea_cachettes', prefix = 'cach:' },                -- cachettes de contrebande (tournevis) ; police : inspecter, démonter un emplacement
+    { res = 'elyzea_k9', prefix = 'k9:', target = true },           -- chiens K9 (police, gangs) : ordres rapides sur son chien, médaille des autres
 }
 
 -- Cible propre à une ressource (ex. bijoutier, sac de butin) : renvoie le fournisseur et le titre
