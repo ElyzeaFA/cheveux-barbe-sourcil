@@ -107,7 +107,7 @@ for _, o in ipairs({ 'follow', 'stay', 'sit', 'lie', 'come', 'defend', 'search',
     local target = (o == 'sniffv') and 3001 or 12
     cbres['elyzea_k9:order'] = { ok = true, obey = true, hesitate = 100, order = o, target = target, chase = 1, sniffMs = 600, seconds = 1, refresh = 500 }
     cbres['elyzea_k9:sniffPerson'] = { ok = true, marked = true, xp = 60 }
-    cbres['elyzea_k9:sniffVehicle'] = { ok = true, marked = true, spots = { 'trunk', 'hidden' }, xp = 60 }
+    cbres['elyzea_k9:sniffVehicle'] = { ok = true, marked = true, spots = { 'trunk', 'hidden_door', 'hidden_seat' }, xp = 60 }
     cbres['elyzea_k9:searchZone'] = { ok = true, spots = { { kind = 'person', x = 3, y = 0, z = 30 }, { kind = 'drugs', x = 4, y = 0, z = 30 } }, xp = 90 }
     cbres['elyzea_k9:intimidate'] = { ok = true, level = 3, seconds = 1 }
     cbres['elyzea_k9:contact'] = { ok = true, success = true, hold = 1, xp = 70 }

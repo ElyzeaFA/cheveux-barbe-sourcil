@@ -152,7 +152,7 @@ Ely.callback.register('elyzea_k9:sniffVehicle', function(src, side, netId)
     if Dist(GetEntityCoords(veh), GetEntityCoords(dog)) > 7.0 then return { ok = false, error = 'Le chien n\'a pas pu approcher du véhicule.' } end
     local e = K9.Effects(d)
     local plate = Plate(veh)
-    local spots = {}   -- où le chien marque : trunk | cabin | hidden
+    local spots = {}   -- où le chien marque : trunk | cabin | hidden_door | hidden_seat | hidden_wheel | hidden_trunk | hidden_saddle
     if plate ~= '' and CountDrugs(TrunkItems(plate)) > 0 and roll(e.sniffChance) then spots[#spots + 1] = 'trunk' end
     -- habitacle : occupants porteurs de stupéfiants
     for seat = -1, 6 do
@@ -167,8 +167,14 @@ Ely.callback.register('elyzea_k9:sniffVehicle', function(src, side, netId)
     if plate ~= '' and GetResourceState('elyzea_cachettes') == 'started' then
         local ok3, hidden = pcall(function() return exports.elyzea_cachettes:GetVehicleHiddenItems(plate) end)
         if ok3 and type(hidden) == 'table' then
+            -- le chien indique le TYPE d'endroit (portière, siège…), jamais lequel précisément
+            local seenType = {}
             for _, h in ipairs(hidden) do
-                if CountDrugs(h.items) > 0 and roll(e.sniffHidden and e.sniffChance or e.sniffChance * 0.35) then spots[#spots + 1] = 'hidden' break end
+                local t = h.type or tostring(h.slot or ''):match('^(%a+)_') or 'hidden'
+                if not seenType[t] and CountDrugs(h.items) > 0 and roll(e.sniffHidden and e.sniffChance or e.sniffChance * 0.35) then
+                    seenType[t] = true
+                    spots[#spots + 1] = 'hidden_' .. t
+                end
             end
         end
     end

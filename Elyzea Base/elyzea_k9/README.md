@@ -46,7 +46,7 @@ Dépendances : `elyzea_core`, `elyzea_inventory` (obligatoires) ; `elyzea_police
 | Défends-moi | ✔ | ✔ | Le chien intervient seul contre quiconque blesse ou tire près de son maître. |
 | Fouiller la zone | ✔ | | Personnes cachées (pistage) + stupéfiants au sol / coffres chargés (reniflage) autour du chien. |
 | Renifler la personne | ✔ | | Le chien tourne autour de la personne ; s'il détecte des stupéfiants, il **marque** (assis, aboiement). |
-| Renifler le véhicule | ✔ | | Tour du véhicule ; marque le **coffre**, l'**habitacle** (occupants) et les **cachettes** (`elyzea_cachettes`, bien mieux dès le reniflage 3). |
+| Renifler le véhicule | ✔ | | Tour du véhicule ; s'il y a de la drogue, il marque et annonce « il y a de la drogue dans le véhicule » avec le **type d'endroit** : dans le coffre, sur un occupant, dans une portière, dans un siège, dans un passage de roue, dans la garniture du coffre, sous la selle — **sans dire laquelle** (ex. « dans une portière » et pas « portière avant gauche »). Cachettes d'`elyzea_cachettes` bien mieux repérées dès le reniflage 3. |
 | Aboyer, Intimider | ✔ | ✔ | Pression sur la personne (elle ne peut plus courir, puis plus sauter, puis est tétanisée selon le niveau). |
 | Attaquer | ✔ | ✔ | Poursuite, saisie, **maintien au sol** (4 à 10 s selon le niveau). |
 | Faire tomber | ✔ | ✔ | Poursuite et mise au sol, sans maintien. |

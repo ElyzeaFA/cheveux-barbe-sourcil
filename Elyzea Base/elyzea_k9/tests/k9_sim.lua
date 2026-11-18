@@ -213,10 +213,10 @@ if PHASE == 1 then
     ENTS[veh] = { pos = vector3(4, 4, 30), type = 2, plate = 'AB123CD' }
     NETS[3001] = veh
     TRUNK.AB123CD = { { name = 'weed_pouch', count = 2 } }
-    HIDDEN.AB123CD = { { slot = 'door', label = 'Portière', items = { { name = 'meth', count = 4 } } } }
+    HIDDEN.AB123CD = { { slot = 'door_fl', type = 'door', label = 'Portière avant gauche', items = { { name = 'meth', count = 4 } } }, { slot = 'door_rr', type = 'door', label = 'Portière arrière droite', items = { { name = 'meth', count = 1 } } }, { slot = 'seat_p', type = 'seat', label = 'Siège passager avant', items = { { name = 'meth', count = 2 } } } }
     cb('elyzea_k9:order', 1, 'police', 'sniffv', 3001)
     local sv = cb('elyzea_k9:sniffVehicle', 1, 'police', 3001)
-    check(sv.ok and sv.marked and #sv.spots == 2 and sv.spots[1] == 'trunk' and sv.spots[2] == 'hidden', 'véhicule : coffre + cachette marqués')
+    check(sv.ok and sv.marked and #sv.spots == 3 and sv.spots[1] == 'trunk' and sv.spots[2] == 'hidden_door' and sv.spots[3] == 'hidden_seat', 'véhicule : coffre + portière + siège (sans dire lesquels)')
     TRUNK.AB123CD = nil
     py_query("CREATE TABLE IF NOT EXISTS elyzea_stashes (id VARCHAR(120) PRIMARY KEY, items LONGTEXT)")
     py_update("REPLACE INTO elyzea_stashes VALUES ('trunk:AB123CD', '[{\"name\":\"cokebaggy\",\"count\":1,\"slot\":1}]')")

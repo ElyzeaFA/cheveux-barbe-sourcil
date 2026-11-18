@@ -439,9 +439,13 @@ Exec.sniffv = function(d, r)
     local res = Ely.callback.await('elyzea_k9:sniffVehicle', false, d.side, r.target)
     if C.dog ~= d then return end
     if res and res.ok and res.marked then
-        local where = { trunk = 'le coffre', cabin = 'l\'habitacle', hidden = 'un endroit inhabituel du véhicule (cachette ?)' }
+        local where = {
+            trunk = 'dans le coffre', cabin = 'sur un occupant',
+            hidden_door = 'dans une portière', hidden_seat = 'dans un siège', hidden_wheel = 'dans un passage de roue',
+            hidden_trunk = 'dans la garniture du coffre', hidden_saddle = 'sous la selle',
+        }
         local first = res.spots[1]
-        local spot = first == 'trunk' and { 0.0, -l } or (first == 'cabin' and { w, 0.0 } or { -w, 0.2 })
+        local spot = (first == 'trunk' or first == 'hidden_trunk') and { 0.0, -l } or (first == 'cabin' and { w, 0.0 } or { -w, 0.2 })
         local p = GetOffsetFromEntityInWorldCoords(veh, spot[1], spot[2], 0.0)
         TaskGoStraightToCoord(d.ped, p.x, p.y, p.z, 1.0, 4000, 0.0, 0.3)
         Wait(2500)
@@ -449,8 +453,8 @@ Exec.sniffv = function(d, r)
         if not C.Pose(d.ped, 'indicate', 3000, false) then C.Pose(d.ped, 'sit', 3000, false) end
         C.Vocal(d.ped, 'BARK')
         local list = {}
-        for _, s in ipairs(res.spots) do list[#list + 1] = where[s] or s end
-        C.Notify(('%s MARQUE %s.%s'):format(d.name, table.concat(list, ', '), res.xp and res.xp > 0 and (' (+%d XP)'):format(res.xp) or ''), 'success')
+        for _, s in ipairs(res.spots) do list[#list + 1] = where[s] or 'dans une cachette' end
+        C.Notify(('%s MARQUE : il y a de la drogue dans le véhicule, %s.%s'):format(d.name, table.concat(list, ', '), res.xp and res.xp > 0 and (' (+%d XP)'):format(res.xp) or ''), 'success')
         Wait(3000)
     elseif res and res.ok then
         C.Notify(('%s ne marque pas le véhicule.'):format(d.name), 'inform')
