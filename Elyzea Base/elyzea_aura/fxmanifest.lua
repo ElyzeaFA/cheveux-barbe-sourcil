@@ -31,6 +31,7 @@ server_scripts {
     'server/elymeet.lua',
     'server/lasergame.lua',
     'server/maison.lua',
+    'server/entreprises.lua',
     'server/phones.lua'
 }
 
@@ -49,6 +50,7 @@ files {
     'html/elyfy.css',
     'html/elychat.css',
     'html/elymeet.css',
+    'html/entreprises.css',
     'html/lasergame.css',
     'html/maison.css',
     'html/fold.css',

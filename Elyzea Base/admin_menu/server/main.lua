@@ -307,6 +307,12 @@ do
         meta.club1 = true
         Storage.save('meta', meta)
     end
+    if not meta.entreprises1 then
+        -- Modération des entreprises des joueurs (elyzea_entreprises) : SuperAdmin (le Fondateur a toujours tout)
+        if Ranks.superadmin then Ranks.superadmin.perms.entreprises_manage = true end
+        meta.entreprises1 = true
+        Storage.save('meta', meta)
+    end
     if not meta.resto1 then
         -- Onglet Restaurants (elyzea_restaurant) : SuperAdmin (le Fondateur a toujours tout)
         if Ranks.superadmin then Ranks.superadmin.perms.resto_manage = true end

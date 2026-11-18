@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logo de mon entreprise · Elyzea</title>
+<style>
+  :root { --bg: #0b0b18; --panel: #14142c; --line: rgba(160,156,255,.18); --text: #eeedfb; --muted: #a3a0d6; --accent: #7c6cff; --accent2: #a99dff; --ok: #22c55e; --bad: #ef4444; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(60rem 40rem at 20% -10%, rgba(124,108,255,.25), transparent), var(--bg);
+    color: var(--text); font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+  .card { width: min(30rem, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 28px; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent2); font-weight: 700; }
+  h1 { font-size: 24px; margin: 6px 0 4px; }
+  p { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 18px 0 6px; }
+  input[type=text] { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: #0e0e22; color: var(--text); font-size: 20px;
+    letter-spacing: .3em; text-transform: uppercase; text-align: center; font-family: ui-monospace, monospace; }
+  .drop { margin-top: 18px; border: 2px dashed var(--line); border-radius: 18px; padding: 22px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: rgba(124,108,255,.08); }
+  .drop b { display: block; font-size: 15px; margin-bottom: 4px; }
+  .preview { display: none; margin: 18px auto 0; width: 160px; height: 160px; border-radius: 28px; background: #0e0e22 center / cover no-repeat; border: 1px solid var(--line); }
+  .btn { margin-top: 18px; width: 100%; padding: 13px; border-radius: 12px; border: 0; background: var(--accent); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .msg { margin-top: 14px; font-size: 14px; min-height: 20px; }
+  .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .row input { accent-color: var(--accent); }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="eyebrow">Elyzea · Entreprises</div>
+  <h1>Logo de mon entreprise</h1>
+  <p>Choisissez une image sur votre ordinateur : elle arrive toute seule dans l'appli <b>Entreprises</b> de votre téléphone en jeu.</p>
+  <label for="code">Code affiché sur le téléphone</label>
+  <input type="text" id="code" maxlength="6" autocomplete="off" spellcheck="false">
+  <div class="drop" id="drop"><b>Choisir une image</b><span id="dropTxt">PNG, JPG ou WEBP · <span id="max">5</span> Mo maximum · ou glissez-la ici</span></div>
+  <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+  <div class="preview" id="preview"></div>
+  <div class="row"><input type="checkbox" id="square" checked><label for="square" style="margin:0">Recadrer en carré (512 × 512, recommandé)</label></div>
+  <button class="btn" id="send" disabled>Envoyer au téléphone</button>
+  <div class="msg" id="msg" role="status"></div>
+</main>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const params = new URLSearchParams(location.search);
+  const base = location.pathname.replace(/\/logo\/?$/, '');
+  const api = async (path, data) => {
+    const r = await fetch(`${base}/logo/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    let j = {}; try { j = await r.json(); } catch (e) { /* vide */ }
+    return j;
+  };
+  let file = null, blob = null, maxMb = 5;
+  const msg = (t, kind = '') => { const m = $('#msg'); m.textContent = t; m.className = `msg ${kind}`; };
+  $('#code').value = (params.get('code') || '').toUpperCase().slice(0, 6);
+  const ready = () => { $('#send').disabled = !(blob && $('#code').value.trim().length === 6); };
+  $('#code').addEventListener('input', () => { $('#code').value = $('#code').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); ready(); });
+  if ($('#code').value.length === 6) api('check', { code: $('#code').value }).then((r) => {
+    if (r.ok) { maxMb = r.maxMb || 5; $('#max').textContent = maxMb; msg('Code valable : choisissez votre image.', 'ok'); }
+    else msg(r.error || 'Code invalide.', 'bad');
+  });
+
+  // Recadrage carré (centre) en 512 × 512 ; PNG garde la transparence
+  function prepare(f) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        if (!$('#square').checked && f.type !== 'image/gif') {
+          const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+          const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          return c.toBlob((b) => (b ? res(b) : rej()), f.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', .9);
+        }
+        if (f.type === 'image/gif') return res(f);   // GIF animé gardé tel quel
+        const s = Math.min(img.width, img.height), c = document.createElement('canvas'); c.width = c.height = 512;
+        c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 512, 512);
+        c.toBlob((b) => (b ? res(b) : rej()), f.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', .9);
+      };
+      img.onerror = rej;
+      img.src = URL.createObjectURL(f);
+    });
+  }
+  async function pick(f) {
+    if (!f) return;
+    if (!/^image\//.test(f.type)) return msg('Ce fichier n\'est pas une image.', 'bad');
+    file = f;
+    try { blob = await prepare(f); } catch (e) { blob = null; return msg('Image illisible.', 'bad'); }
+    if (blob.size > maxMb * 1024 * 1024) { blob = null; return msg(`Image trop lourde (${maxMb} Mo maximum).`, 'bad'); }
+    $('#preview').style.display = 'block';
+    $('#preview').style.backgroundImage = `url('${URL.createObjectURL(blob)}')`;
+    msg(`${f.name} · ${(blob.size / 1024).toFixed(0)} Ko`);
+    ready();
+  }
+  $('#drop').onclick = () => $('#file').click();
+  $('#file').onchange = (e) => pick(e.target.files[0]);
+  $('#square').onchange = () => file && pick(file);
+  ['dragenter', 'dragover'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('over'); }));
+  $('#drop').addEventListener('drop', (e) => pick(e.dataTransfer.files[0]));
+
+  $('#send').onclick = async () => {
+    const code = $('#code').value.trim();
+    $('#send').disabled = true;
+    try {
+      msg('Préparation de l\'envoi…');
+      const s = await api('start', { code, size: blob.size, type: blob.type || file.type });
+      if (!s.ok) { msg(s.error || 'Envoi refusé.', 'bad'); return ready(); }
+      msg('Envoi de l\'image…');
+      const fd = new FormData();
+      const ext = (blob.type || '').split('/')[1] || 'png';
+      fd.append('file', blob, `logo_${Date.now()}.${ext}`);
+      const up = await fetch(s.uploadUrl, { method: 'POST', body: fd });
+      let body = {}; try { body = await up.json(); } catch (e) { /* vide */ }
+      const url = body.url || (body.data && body.data.url);
+      if (!url) { msg(up.status === 413 ? 'Image trop lourde pour l\'hébergeur.' : 'L\'hébergeur a refusé l\'image.', 'bad'); return ready(); }
+      const f = await api('finish', { code, url });
+      if (!f.ok) { msg(f.error || 'Erreur.', 'bad'); return ready(); }
+      msg('✓ Logo envoyé ! Retournez en jeu : il est dans l\'appli Entreprises de votre téléphone.', 'ok');
+    } catch (e) { msg('Connexion impossible avec le serveur ou l\'hébergeur.', 'bad'); ready(); }
+  };
+})();
+</script>
+</body>
+</html>

@@ -37,6 +37,7 @@ const APP_ICONS = {
   services:  { c1: '#FFD36E', c2: '#E07B12', fill: '<path d="M3 9.5 5 4h14l2 5.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>', line: '<path d="M3 9.5h18M9 21v-6h6v6M7.5 13h.01M16.5 13h.01"/>' },
   sante:     { c1: '#7DF0C8', c2: '#0E9F8A', fill: '<rect x="4" y="4" width="16" height="16" rx="4"/>', line: '<path d="M12 8.2v7.6M8.2 12h7.6"/>' },
   lasergame: { c1: '#B57BFF', c2: '#FF2D46', fill: '<circle cx="12" cy="12" r="7.5"/>', line: '<circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>' },
+  entreprises:{ c1: '#9D8CFF', c2: '#4B3BD6', fill: '<rect x="3" y="7.5" width="18" height="13" rx="2.5"/>', line: '<path d="M8.5 7.5V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2M3 13h18M11 13v2h2v-2"/>' },
   maison:    { c1: '#F6D27A', c2: '#B5772A', fill: '<path d="M3.5 11 12 4l8.5 7v8.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/>', line: '<path d="M9.5 20.5v-5.5h5v5.5M12 8.2v.01"/>' },
   auradrop:  { c1: '#6FE7F2', c2: '#7C6CFF', fill: '<circle cx="12" cy="12" r="3.2"/>', line: '<path d="M7.5 16.5a6.4 6.4 0 0 1 0-9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 19.4a10.5 10.5 0 0 1 0-14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/>' },
   system:    { c1: '#9AA0B8', c2: '#4B5169', fill: '<circle cx="12" cy="12" r="8"/>', line: '<path d="M12 8v4.5M12 15.5v.3"/>' },
@@ -113,6 +114,9 @@ const P = {
   carplay: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.6"/><path d="M3.5 10.5c3-1.2 5.6-1.6 8.5-1.6s5.5.4 8.5 1.6M12 14.6v6.2M9.6 13.4 4.8 17.6M14.4 13.4l4.8 4.2"/>',
   alert: '<path d="M12 3 2.5 20h19z"/><path d="M12 10v4.5M12 17.2v.3"/>',
   hash: '<path d="M5 9h15M4 15h15M10 3 8 21M16 3l-2 18"/>',
+  upload: '<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 15v3.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V15"/>',
+  briefcase: '<rect x="3" y="7.5" width="18" height="13" rx="2.5"/><path d="M8.5 7.5V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2M3 13h18"/>',
+  image: '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8.5 8.5"/>',
 };
 const icon = (name, color) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="${color || 'currentColor'}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;

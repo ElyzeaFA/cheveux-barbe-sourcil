@@ -56,13 +56,14 @@ local function NewNumber(prefix)
         if not JP.byNumber[cand] and not B.byNumber[cand] then return cand end
     end
 end
-local function Record(unit, prefix)
+-- openDefault : entreprise joignable dès sa création (entreprises des joueurs) ; sinon fermée jusqu'à « Ouvrir »
+local function Record(unit, prefix, openDefault)
     local u = B.units[unit]
     if u then return u end
     if not B.ready then return nil end
     local number = NewNumber(prefix)
     if not number then return nil end
-    MySQL.insert.await('INSERT IGNORE INTO `jobphone_business` (`unit`, `number`, `open`) VALUES (?, ?, 0)', { unit, number })
+    MySQL.insert.await('INSERT IGNORE INTO `jobphone_business` (`unit`, `number`, `open`) VALUES (?, ?, ?)', { unit, number, openDefault and 1 or 0 })
     local row = MySQL.single.await('SELECT `number`, `open` FROM `jobphone_business` WHERE `unit` = ?', { unit })
     if not row then return nil end
     u = { unit = unit, number = row.number, open = row.open == 1 or row.open == true }
@@ -78,7 +79,7 @@ function B.List(force)
     local list = {}
     for _, j in ipairs(Config.Jobs) do
         for _, x in ipairs(JP.Bridge(j.res, 'units', 0) or {}) do
-            local u = Record(x.unit, x.prefix or j.prefix)
+            local u = Record(x.unit, x.prefix or j.prefix, x.openDefault == true)
             if u then
                 list[#list + 1] = {
                     unit = x.unit, res = j.res, label = x.label or j.label, jobLabel = j.label, color = x.color or j.color,

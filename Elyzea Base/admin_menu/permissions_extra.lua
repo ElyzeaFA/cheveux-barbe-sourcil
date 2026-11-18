@@ -26,6 +26,7 @@ local EXTRA = {
     { key = 'club_toggle',   label = 'Boîtes de nuit : activer / désactiver une boîte', cat = 'Métiers' },
     { key = 'club_delete',   label = 'Boîtes de nuit : supprimer une boîte', cat = 'Métiers' },
     { key = 'club_music',    label = 'Boîtes de nuit : retirer une enceinte, couper la musique', cat = 'Métiers' },
+    { key = 'entreprises_manage', label = 'Entreprises des joueurs : modérer (suspendre / réactiver, retirer un logo ou une description, renommer, dissoudre) · /entreprises_admin (elyzea_entreprises)', cat = 'Métiers' },
     { key = 'resto_manage',  label = 'Restaurants : TOUT (toutes les cases « Restaurants » ci-dessous) (elyzea_restaurant)', cat = 'Métiers' },
     { key = 'resto_view',    label = 'Restaurants : voir les restaurants (panneau staff en lecture, aller aux points)', cat = 'Métiers' },
     { key = 'resto_edit',    label = 'Restaurants : créer un restaurant, modifier ses réglages (nom, logo, métier, compte, icône)', cat = 'Métiers' },

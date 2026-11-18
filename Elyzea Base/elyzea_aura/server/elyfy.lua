@@ -776,3 +776,22 @@ SetHttpHandler(function(req, res)
     res.writeHead(404, { ['Content-Type'] = 'text/plain' })
     res.send('')
 end)
+
+-- ---------------------------------------------------------
+--  Pour les autres ressources (ex. logo d'entreprise importé depuis l'ordinateur, elyzea_entreprises)
+--  · UploadUrl(kind)       → lien d'envoi à usage unique de l'hébergeur de l'appareil photo (clé gardée ici)
+--  · UploadHostAllowed(url) → lien d'un fichier envoyé chez un hébergeur autorisé (Config.ElyFy.UploadHosts)
+--  · ImportBase()          → adresse publique du serveur (http://IP:PORT) trouvée pour la page d'import
+-- ---------------------------------------------------------
+exports('UploadUrl', function(kind)
+    kind = (kind == 'video' or kind == 'audio') and kind or 'image'
+    local cam = Config.Camera or {}
+    local presigned = cam.PresignedUrl or 'https://api.fivemanage.com/api/presigned-url?fileType=%s'
+    local r = Http('GET', presigned:format(kind), '', cam.Headers or {})
+    local ok, j = pcall(json.decode, r.body or '')
+    local url = ok and type(j) == 'table' and (j.presignedUrl or (j.data and j.data.presignedUrl))
+    if not url then return nil, ('code %s'):format(tostring(r.code)) end
+    return url
+end)
+exports('UploadHostAllowed', function(url) return HostAllowed(url, CFG.UploadHosts or {}) end)
+exports('ImportBase', function() return Base(IMP.Url) or Detected end)

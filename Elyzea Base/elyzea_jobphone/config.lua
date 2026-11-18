@@ -19,6 +19,8 @@ Config.Jobs = {
     { res = 'elyzea_presse',  bag = 'presse',  label = 'Presse',    prefix = '916', color = '#e11d48' },
     { res = 'elyzea_club',    bag = 'club',    label = 'Boîte de nuit', prefix = '917', color = '#d946ef' },
     { res = 'elyzea_restaurant', bag = 'resto', label = 'Restaurant', prefix = '918', color = '#f97316' },
+    -- Entreprises créées par les joueurs (elyzea_entreprises) : une unité par entreprise
+    { res = 'elyzea_entreprises', bag = 'ent', label = 'Entreprise', prefix = '919', color = '#7c6cff' },
 }
 
 -- Alertes (mêmes niveaux que la police et l'EMS ; pour les autres métiers,

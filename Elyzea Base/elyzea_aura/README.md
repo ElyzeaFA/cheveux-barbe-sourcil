@@ -31,6 +31,15 @@ Téléphone complet pour FiveM, compatible **Qbox**, QBCore, ESX et standalone (
 - Données fournies par `elyzea_ems` (rendez-vous, santé) et `elyzea_famille` (grossesse). Sans elles, l'onglet affiche « indisponible ».
 - **Correctif** : l'application Grossesse n'avait pas de réponse côté serveur (`grossesseSuivi`) ; elle lit maintenant `exports.elyzea_famille:SuiviGrossesse`.
 
+## Nouveautés : application Entreprises
+- **Entreprises** (sur l'écran d'accueil) : les entreprises **créées par les joueurs** (ressource `elyzea_entreprises`).
+  - **Entreprise** : toutes les entreprises avec leur logo, spécialité, description, nombre d'employés en service ; recherche, filtre par spécialité,
+    fiche détaillée ; **Appeler** (sonne sur le téléphone de service de tous les employés en service, le premier qui décroche répond) et **Message**.
+  - **Lancer mon Business** : nom, spécialité, logo, couleur, description, paiement depuis la banque → l'entreprise est créée et le joueur en est le patron.
+    Une fois employé : **Mon business** (modifier la vitrine).
+  - **Logo** : galerie du téléphone, lien d'image, ou **depuis l'ordinateur** (page web ouverte dans le navigateur + code ; l'image part chez l'hébergeur de l'appareil photo).
+- Nécessite `elyzea_entreprises` et `elyzea_jobphone` (voir leur README).
+
 ## Nouveautés : application Services
 - **Services** (sur l'écran d'accueil, pas besoin de la télécharger) : liste de **toutes les entreprises** du serveur
   (restaurants, boîtes, concessions, police, EMS, mécano, Dynasty 8, presse…), rangées par métier, avec recherche,
